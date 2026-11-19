@@ -16,6 +16,7 @@ local MapLayout = require(Shared:WaitForChild("MapLayout"))
 local NetContracts = require(Shared:WaitForChild("NetContracts"))
 
 export type NodeRepairedCallback = (nodeId: string, sector: string) -> ()
+export type RepairNoiseCallback = (worldPos: Vector3) -> ()
 
 local RepairService = {}
 
@@ -23,6 +24,7 @@ type ActiveHold = {
 	player: Player,
 	startTime: number,
 	startProgress: number,
+	lastNoiseTime: number,
 }
 
 local COLOR_STANDBY = Color3.fromRGB(65, 72, 80)
@@ -32,6 +34,7 @@ local COLOR_REPAIRED = Color3.fromRGB(64, 210, 115)
 local nodesById: { [string]: Model } = {}
 local activeHolds: { [Model]: ActiveHold } = {}
 local onNodeRepairedCallback: NodeRepairedCallback? = nil
+local onRepairNoiseCallback: RepairNoiseCallback? = nil
 local initialized = false
 
 local function getPrompt(nodeModel: Model): ProximityPrompt?
@@ -230,6 +233,7 @@ local function setupNode(nodeModel: Model)
 				player = player,
 				startTime = os.clock(),
 				startProgress = currentProgress,
+				lastNoiseTime = 0,
 			}
 			updateNodeVisuals(nodeModel)
 		end)
@@ -310,6 +314,10 @@ function RepairService.getRepairedCount(): number
 	return count
 end
 
+function RepairService.setNoiseCallback(callback: RepairNoiseCallback?)
+	onRepairNoiseCallback = callback
+end
+
 function RepairService.init(onRepaired: NodeRepairedCallback?)
 	if initialized then
 		return
@@ -330,19 +338,24 @@ function RepairService.init(onRepaired: NodeRepairedCallback?)
 	end)
 
 	RunService.Heartbeat:Connect(function()
+		local now = os.clock()
 		for nodeModel, hold in pairs(activeHolds) do
 			local body = nodeModel.PrimaryPart
 			if not hold.player.Parent or not body or not isPlayerAliveNear(hold.player, body) then
 				activeHolds[nodeModel] = nil
 				updateNodeVisuals(nodeModel)
 			else
-				local elapsed = os.clock() - hold.startTime
+				local elapsed = now - hold.startTime
 				local liveProgress = math.clamp(
 					hold.startProgress + elapsed / GameConfig.Repair.RepairDurationSeconds,
 					0,
 					0.99
 				)
 				nodeModel:SetAttribute("RepairProgress", liveProgress)
+				if onRepairNoiseCallback and now - hold.lastNoiseTime >= 1.4 then
+					hold.lastNoiseTime = now
+					onRepairNoiseCallback(body.Position)
+				end
 			end
 		end
 	end)

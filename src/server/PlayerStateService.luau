@@ -37,14 +37,20 @@ end
 local function setupCollisionGroups()
 	local crawlers = NetContracts.CollisionGroups.Crawlers
 	local ventWalls = NetContracts.CollisionGroups.VentWalls
+	local entityGroup = NetContracts.CollisionGroups.Entity
 
 	ensureCollisionGroup(crawlers)
 	ensureCollisionGroup(ventWalls)
+	ensureCollisionGroup(entityGroup)
 
 	-- Co-op players can share tight ducts without body-block griefing.
 	PhysicsService:CollisionGroupSetCollidable(crawlers, crawlers, false)
 	PhysicsService:CollisionGroupSetCollidable(crawlers, ventWalls, true)
 	PhysicsService:CollisionGroupSetCollidable(crawlers, "Default", true)
+
+	PhysicsService:CollisionGroupSetCollidable(entityGroup, ventWalls, true)
+	PhysicsService:CollisionGroupSetCollidable(entityGroup, crawlers, false)
+	PhysicsService:CollisionGroupSetCollidable(entityGroup, entityGroup, false)
 end
 
 local function configureCharacterPart(part: BasePart)
@@ -176,6 +182,7 @@ local function onPlayerAdded(player: Player)
 	player:SetAttribute(NetContracts.Attributes.HeadlampOn, true)
 	player:SetAttribute(NetContracts.Attributes.InSafeRoom, true)
 	player:SetAttribute(NetContracts.Attributes.IsCrawling, false)
+	player:SetAttribute(NetContracts.Attributes.PanicRatio, 0)
 	toggleTimestamps[player] = 0
 	stanceTimestamps[player] = 0
 

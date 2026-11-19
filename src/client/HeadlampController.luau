@@ -11,10 +11,13 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local EntityProfiles = require(Shared:WaitForChild("EntityProfiles"))
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local NetContracts = require(Shared:WaitForChild("NetContracts"))
 
 local HeadlampController = {}
+
+local activeProfile = EntityProfiles.getActiveProfile()
 
 local localPlayer = Players.LocalPlayer
 local initialized = false
@@ -258,6 +261,29 @@ function HeadlampController.init()
 		local targetCFrame = camera.CFrame * GameConfig.Headlamp.CameraOffset
 		local alpha = 1 - math.exp(-GameConfig.Headlamp.LagRate * dt)
 		headlampPart.CFrame = headlampPart.CFrame:Lerp(targetCFrame, alpha)
+
+		-- Diegetic proximity flicker when entity approaches inside vents
+		if isOn and localPlayer:GetAttribute(NetContracts.Attributes.InSafeRoom) == false then
+			local ventMap = workspace:FindFirstChild("VentMap")
+			local entity = if ventMap then ventMap:FindFirstChild(activeProfile.id) else nil
+			local core = if entity and entity:IsA("Model") then entity.PrimaryPart else nil
+			if core then
+				local dist = (camera.CFrame.Position - core.Position).Magnitude
+				if dist <= activeProfile.proximityFlickerRange then
+					local intensity = 1 - (dist / activeProfile.proximityFlickerRange)
+					local flicker = 0.35 + 0.65 * math.abs(math.sin(os.clock() * (18 + intensity * 28)))
+					if math.sin(os.clock() * 47) > (0.85 - intensity * 0.4) then
+						flicker = 0.12
+					end
+					primaryBeam.Brightness = GameConfig.Headlamp.Brightness * flicker
+					fillBeam.Brightness = GameConfig.Headlamp.FillBrightness * flicker
+					return
+				end
+			end
+		end
+
+		primaryBeam.Brightness = GameConfig.Headlamp.Brightness
+		fillBeam.Brightness = GameConfig.Headlamp.FillBrightness
 	end)
 end
 

@@ -13,6 +13,8 @@ local NetContracts = {
 		HeadlampToggled = "HeadlampToggled",
 		WorkOrderSignOff = "WorkOrderSignOff",
 		RoundStateSync = "RoundStateSync",
+		NoiseEmitted = "NoiseEmitted",
+		PanicStateSync = "PanicStateSync",
 	},
 
 	Tags = {
@@ -27,11 +29,13 @@ local NetContracts = {
 		HeadlampOn = "HeadlampOn",
 		InSafeRoom = "InSafeRoom",
 		IsCrawling = "IsCrawling",
+		PanicRatio = "PanicRatio",
 	},
 
 	CollisionGroups = {
 		Crawlers = "Crawlers",
 		VentWalls = "VentWalls",
+		Entity = "Entity",
 	},
 }
 

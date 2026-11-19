@@ -63,6 +63,26 @@ local GameConfig = {
 		FullClearBonusXP = 150,
 		RoundResetDelay = 4.0,
 	},
+
+	Panic = {
+		BuildRateDarkStill = 0.055,
+		BuildRateDarkMoving = 0.015,
+		DecayRateLightOn = 0.08,
+		DecayRateSafeRoom = 0.25,
+		GaspThreshold = 0.85,
+		GaspInterval = 3.5,
+	},
+
+	Entity = {
+		SpawnTileKey = "0,-6",
+		KillRadius = 3.4,
+		InvestigateDuration = 6.0,
+		PatrolSpeedMultiplier = 0.75,
+		ChaseSpeedMultiplier = 1.15,
+		CrawlNoiseRadius = 20.0,
+		RepairNoiseRadius = 30.0,
+		GaspNoiseRadius = 34.0,
+	},
 }
 
 return GameConfig
