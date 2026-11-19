@@ -1,11 +1,12 @@
 --!strict
 --[[
-	Client Work Order HUD synced from server RoundStateSync broadcasts.
-	Displays active repair progress, faulted sectors, and extraction sign-off outcomes.
+	Client Work Order HUD, Elimination Jump-Scare Flash, and Teammate Spectate cycling.
+	Synced from server RoundStateSync & PlayerEliminated broadcasts.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local NetContracts = require(Shared:WaitForChild("NetContracts"))
@@ -27,6 +28,9 @@ local initialized = false
 local statusLabel: TextLabel? = nil
 local sectorsLabel: TextLabel? = nil
 local bannerLabel: TextLabel? = nil
+local scareFlash: Frame? = nil
+local spectateLabel: TextLabel? = nil
+local spectateIndex = 0
 
 local function formatSectors(activeSectors: { [string]: boolean }?): string
 	if not activeSectors then
@@ -42,6 +46,81 @@ local function formatSectors(activeSectors: { [string]: boolean }?): string
 		return "FAULT SECTORS: ALL CLEAR"
 	end
 	return "FAULT SECTORS: " .. table.concat(list, " · ")
+end
+
+local function restoreLocalCamera()
+	local cam = workspace.CurrentCamera
+	local char = localPlayer.Character
+	local hum = if char then char:FindFirstChildOfClass("Humanoid") else nil
+	if cam and hum then
+		cam.CameraSubject = hum
+	end
+	if spectateLabel then
+		if localPlayer:GetAttribute(NetContracts.Attributes.IsEliminated) == true then
+			spectateLabel.Visible = true
+			spectateLabel.Text = "ELIMINATED — SAFE ROOM LOCKDOWN  |  [TAB] SPECTATE SQUAD"
+		else
+			spectateLabel.Visible = false
+		end
+	end
+end
+
+local function cycleSpectate()
+	if localPlayer:GetAttribute(NetContracts.Attributes.IsEliminated) ~= true then
+		return
+	end
+
+	local aliveTargets: { Player } = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= localPlayer and p:GetAttribute(NetContracts.Attributes.IsEliminated) ~= true then
+			local char = p.Character
+			local hum = if char then char:FindFirstChildOfClass("Humanoid") else nil
+			if hum and hum.Health > 0 then
+				table.insert(aliveTargets, p)
+			end
+		end
+	end
+
+	local cam = workspace.CurrentCamera
+	if not cam then
+		return
+	end
+
+	spectateIndex += 1
+	if spectateIndex > #aliveTargets then
+		spectateIndex = 0
+		restoreLocalCamera()
+		return
+	end
+
+	local target = aliveTargets[spectateIndex]
+	local hum = if target.Character then target.Character:FindFirstChildOfClass("Humanoid") else nil
+	if hum then
+		cam.CameraSubject = hum
+		if spectateLabel then
+			spectateLabel.Visible = true
+			spectateLabel.Text = string.format("SPECTATING: %s  |  [TAB] NEXT / SAFE ROOM", target.Name)
+		end
+	end
+end
+
+local function triggerScareFlash()
+	if not scareFlash then
+		return
+	end
+	scareFlash.Visible = true
+	scareFlash.BackgroundTransparency = 0.15
+	task.spawn(function()
+		for i = 1, 12 do
+			task.wait(0.08)
+			if scareFlash then
+				scareFlash.BackgroundTransparency = 0.15 + (i / 12) * 0.85
+			end
+		end
+		if scareFlash then
+			scareFlash.Visible = false
+		end
+	end)
 end
 
 local function applyState(payload: RoundStatePayload)
@@ -77,6 +156,16 @@ local function createHud()
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
 	gui.Parent = playerGui
+
+	local flash = Instance.new("Frame")
+	flash.Name = "ScareFlash"
+	flash.Size = UDim2.fromScale(1, 1)
+	flash.BackgroundColor3 = Color3.fromRGB(165, 12, 12)
+	flash.BackgroundTransparency = 1
+	flash.BorderSizePixel = 0
+	flash.Visible = false
+	flash.ZIndex = 10
+	flash.Parent = gui
 
 	local card = Instance.new("Frame")
 	card.Name = "Card"
@@ -131,9 +220,25 @@ local function createHud()
 	bLbl.Visible = false
 	bLbl.Parent = gui
 
+	local spLbl = Instance.new("TextLabel")
+	spLbl.Name = "SpectateBanner"
+	spLbl.AnchorPoint = Vector2.new(0.5, 1)
+	spLbl.Position = UDim2.new(0.5, 0, 1, -24)
+	spLbl.Size = UDim2.fromOffset(490, 30)
+	spLbl.BackgroundColor3 = Color3.fromRGB(24, 12, 14)
+	spLbl.BackgroundTransparency = 0.25
+	spLbl.BorderSizePixel = 0
+	spLbl.Font = Enum.Font.Code
+	spLbl.TextSize = 13
+	spLbl.TextColor3 = Color3.fromRGB(255, 130, 120)
+	spLbl.Visible = false
+	spLbl.Parent = gui
+
 	statusLabel = sLbl
 	sectorsLabel = secLbl
 	bannerLabel = bLbl
+	scareFlash = flash
+	spectateLabel = spLbl
 end
 
 function SafeRoomUI.init()
@@ -147,6 +252,29 @@ function SafeRoomUI.init()
 	local roundSync = NetContracts.getRemoteEvent(NetContracts.Remotes.RoundStateSync, false)
 	roundSync.OnClientEvent:Connect(function(payload: RoundStatePayload)
 		applyState(payload)
+	end)
+
+	local eliminatedRemote = NetContracts.getRemoteEvent(NetContracts.Remotes.PlayerEliminated, false)
+	eliminatedRemote.OnClientEvent:Connect(function()
+		triggerScareFlash()
+	end)
+
+	localPlayer:GetAttributeChangedSignal(NetContracts.Attributes.IsEliminated):Connect(function()
+		spectateIndex = 0
+		restoreLocalCamera()
+	end)
+
+	localPlayer.CharacterAdded:Connect(function()
+		task.defer(restoreLocalCamera)
+	end)
+
+	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if gameProcessed then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.Tab then
+			cycleSpectate()
+		end
 	end)
 end
 

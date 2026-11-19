@@ -176,6 +176,7 @@ function RoundService.startNewRound()
 	RepairService.activateFaults(selected)
 
 	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute(NetContracts.Attributes.IsEliminated, false)
 		if player:GetAttribute(NetContracts.Attributes.InSafeRoom) ~= true then
 			PlayerStateService.transitionToSafeRoom(player)
 		end
@@ -184,11 +185,40 @@ function RoundService.startNewRound()
 	broadcastState()
 end
 
+function RoundService.checkSquadWipe()
+	if phase ~= "Active" then
+		return
+	end
+	local players = Players:GetPlayers()
+	if #players == 0 then
+		return
+	end
+	for _, player in ipairs(players) do
+		if player:GetAttribute(NetContracts.Attributes.IsEliminated) ~= true then
+			return
+		end
+	end
+
+	phase = "Summary"
+	lastOutcome = "SQUAD WIPED (+0 XP)"
+	broadcastState()
+
+	local thisRound = roundId
+	task.delay(GameConfig.WorkOrder.RoundResetDelay, function()
+		if roundId == thisRound and phase == "Summary" then
+			RoundService.startNewRound()
+		end
+	end)
+end
+
 function RoundService.trySignOff(player: Player): boolean
 	if phase ~= "Active" then
 		return false
 	end
 	if player:GetAttribute(NetContracts.Attributes.InSafeRoom) ~= true then
+		return false
+	end
+	if player:GetAttribute(NetContracts.Attributes.IsEliminated) == true then
 		return false
 	end
 

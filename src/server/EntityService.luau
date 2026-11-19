@@ -41,6 +41,8 @@ local initialized = false
 
 local noiseRemote: RemoteEvent
 local panicSyncRemote: RemoteEvent
+local eliminatedRemote: RemoteEvent
+local onPlayerEliminatedCallback: ((player: Player) -> ())? = nil
 
 local function computeMapOffset()
 	local ventMap = workspace:FindFirstChild("VentMap")
@@ -243,12 +245,18 @@ function EntityService.getModel(): Model
 	return entityModel
 end
 
+function EntityService.setEliminatedCallback(callback: ((player: Player) -> ())?)
+	onPlayerEliminatedCallback = callback
+end
+
 local function updateDetectionAndElimination()
 	local bestTarget: Player? = nil
 	local bestDist = math.huge
 
 	for _, player in ipairs(Players:GetPlayers()) do
-		if player:GetAttribute(NetContracts.Attributes.InSafeRoom) == false then
+		if player:GetAttribute(NetContracts.Attributes.InSafeRoom) == false
+			and player:GetAttribute(NetContracts.Attributes.IsEliminated) ~= true
+		then
 			local char = player.Character
 			local hum = if char then char:FindFirstChildOfClass("Humanoid") else nil
 			local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
@@ -257,10 +265,15 @@ local function updateDetectionAndElimination()
 			if hum and root and head and hum.Health > 0 then
 				local dist = (entityCore.Position - root.Position).Magnitude
 				if dist <= GameConfig.Entity.KillRadius then
+					player:SetAttribute(NetContracts.Attributes.IsEliminated, true)
+					eliminatedRemote:FireClient(player, { entityId = activeProfile.id })
 					hum.Health = 0
 					targetPlayer = nil
 					setState("Patrol")
 					setDestination(pickPatrolDestination())
+					if onPlayerEliminatedCallback then
+						onPlayerEliminatedCallback(player)
+					end
 					return
 				end
 
@@ -400,6 +413,7 @@ function EntityService.init()
 
 	noiseRemote = NetContracts.getRemoteEvent(NetContracts.Remotes.NoiseEmitted, true)
 	panicSyncRemote = NetContracts.getRemoteEvent(NetContracts.Remotes.PanicStateSync, true)
+	eliminatedRemote = NetContracts.getRemoteEvent(NetContracts.Remotes.PlayerEliminated, true)
 
 	local ventMap = workspace:WaitForChild("VentMap", 10)
 	assert(ventMap, "[EntityService] Workspace.VentMap missing")

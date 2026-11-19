@@ -23,6 +23,9 @@ EntityService.init()
 RepairService.setNoiseCallback(function(worldPos: Vector3)
 	EntityService.alertNoise(worldPos, GameConfig.Entity.RepairNoiseRadius)
 end)
+EntityService.setEliminatedCallback(function(_player: Player)
+	RoundService.checkSquadWipe()
+end)
 
 local activeEntity = EntityProfiles.getActiveProfile()
 print(string.format(

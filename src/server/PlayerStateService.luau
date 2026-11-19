@@ -129,6 +129,9 @@ local function getSafeRoomReturnCFrame(): CFrame
 end
 
 function PlayerStateService.transitionToVents(player: Player)
+	if player:GetAttribute(NetContracts.Attributes.IsEliminated) == true then
+		return
+	end
 	PlayerStateService.setStance(player, false, getVentEntryCFrame())
 end
 
@@ -183,6 +186,7 @@ local function onPlayerAdded(player: Player)
 	player:SetAttribute(NetContracts.Attributes.InSafeRoom, true)
 	player:SetAttribute(NetContracts.Attributes.IsCrawling, false)
 	player:SetAttribute(NetContracts.Attributes.PanicRatio, 0)
+	player:SetAttribute(NetContracts.Attributes.IsEliminated, false)
 	toggleTimestamps[player] = 0
 	stanceTimestamps[player] = 0
 

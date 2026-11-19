@@ -1,4 +1,5 @@
 --!strict
+local AudioController = require(script:WaitForChild("AudioController"))
 local CrawlController = require(script:WaitForChild("CrawlController"))
 local HeadlampController = require(script:WaitForChild("HeadlampController"))
 local PanicController = require(script:WaitForChild("PanicController"))
@@ -8,5 +9,6 @@ CrawlController.init()
 HeadlampController.init()
 PanicController.init()
 SafeRoomUI.init()
+AudioController.init()
 
-print("[Client] M4 CrawlController, HeadlampController, PanicController & SafeRoomUI ready")
+print("[Client] M5 CrawlController, HeadlampController, PanicController, SafeRoomUI & AudioController ready")

@@ -83,6 +83,20 @@ local GameConfig = {
 		RepairNoiseRadius = 30.0,
 		GaspNoiseRadius = 34.0,
 	},
+
+	Audio = {
+		-- Populate with verified rbxassetid:// audio IDs when adding final studio sound assets.
+		EntityScrapeId = "",
+		FaultHumId = "",
+		AmbientCreakId = "",
+		HeadlampClickId = "",
+		PanicGaspId = "",
+		ScareStingId = "",
+		EntityMaxDistance = 42,
+		FaultHumMaxDistance = 14,
+		CreakIntervalMin = 12,
+		CreakIntervalMax = 24,
+	},
 }
 
 return GameConfig

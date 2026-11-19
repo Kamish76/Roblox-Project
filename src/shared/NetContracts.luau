@@ -15,6 +15,7 @@ local NetContracts = {
 		RoundStateSync = "RoundStateSync",
 		NoiseEmitted = "NoiseEmitted",
 		PanicStateSync = "PanicStateSync",
+		PlayerEliminated = "PlayerEliminated",
 	},
 
 	Tags = {
@@ -30,6 +31,7 @@ local NetContracts = {
 		InSafeRoom = "InSafeRoom",
 		IsCrawling = "IsCrawling",
 		PanicRatio = "PanicRatio",
+		IsEliminated = "IsEliminated",
 	},
 
 	CollisionGroups = {
