@@ -1,6 +1,6 @@
 # Project Roadmap & Milestones
 
-> **Current Phase:** `M2 — Modular Vent Kit & Shared MapLayout.luau Pipeline` (`M1` Complete!)  
+> **Current Phase:** `M3 — 1–4 Co-op Repair Loop & Work Order Sign-Off` (`M2` Complete!)  
 > **Active Target:** Ship a playable, atmospheric **MVP v0.1** vertical slice, then expand into **v0.2 *Demonology*-style Deduction & Multi-Entity Roster**.
 
 ---
@@ -22,13 +22,13 @@
 - [x] Build `HeadlampController.luau` (`Workspace._LocalClientVFX.LocalHeadlampRig`) + `HeadlampToggled` server replication + co-op teammate beams
 - **Verification Gate:** Verified live in Studio Play mode (`RigType = R6`, `HipHeight = -1.60`, `CamY = 5.84` vs `HeadY = 5.68`, `deltaZ = 8.88` studs in `1.6s`, `RootJoint.Transform` active, `HeadlampToggled` server round-trip OK, `0` script errors, Edit `screen_capture` zero light bleed).
 
-### M2 — Modular Vent Kit & Shared `MapLayout.luau` Pipeline
+### M2 — Modular Vent Kit & Shared `MapLayout.luau` Pipeline *(Complete)*
 **Goal:** Build the single-floor maze 1:1 from code to Studio and establish Safe Room spatial awareness.
-- [ ] Author `src/shared/MapLayout.luau` defining grid tiles, 4 color-coded sectors (`A`–`D`), loop guarantees, and `DropShaft` anchor
-- [ ] Build the 6 core modular prefabs in Studio (`Straight`, `Corner`, `T-Junction`, `Cross`, `Alcove`, `DropShaft`) + `FloorGrate` peepholes & landmarks
-- [ ] Assemble single-floor map in Studio via `Roblox_Studio` MCP directly from `MapLayout.luau`
-- [ ] Build Safe Room staging area, static **Wall Blueprint**, and `SectorLED` fault annunciator
-- **Verification Gate:** Walk/crawl the entire loop network in Studio; confirm every sector has $\ge 2$ escape routes and blueprint matches actual geometry 1:1.
+- [x] Author `src/shared/MapLayout.luau` defining `33` grid tiles, `4` color-coded sectors (`A`–`D`) + `HUB`, `8` repair slots, loop guarantees, BFS pathing, and `DropShaft (0,0)`
+- [x] Build the 6 core modular prefabs in Studio (`Straight`, `Corner`, `T-Junction`, `Cross`, `Alcove`, `DropShaft`) + `5` sector-colored `FloorGrate` peepholes & bulkhead landmarks
+- [x] Assemble `Workspace.VentMap` in Studio via `Roblox_Studio` MCP directly from `MapLayout.luau` (`33` `VentTile`s, `8` standby `RepairNode`s)
+- [x] Build Safe Room staging area (`FloorY = 14`), 1:1 **Wall Blueprint** (`BlueprintGui`), `SectorLED` fault annunciator (`4` lamps), standby Work Order Terminal, and bidirectional `DropToVents` / `ClimbToSafeRoom` stance switching
+- **Verification Gate:** Verified live in Studio Playtest (`MapLayout.validate()` pass, tags `33/8/4/1/5`, `SafeY=17.00 -> VentY=5.40 -> SafeY=17.10`, multi-tile corner crawl `deltaZ = 8.99` into Sector A, `0` script errors) and via `screen_capture` (legible 1:1 Wall Blueprint + aligned `SectorLED`s, zero light leaks).
 
 ### M3 — 1–4 Co-op Repair Loop & Work Order Sign-Off
 **Goal:** Complete the end-to-end contract loop without the monster yet.
