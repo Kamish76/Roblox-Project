@@ -171,7 +171,17 @@ function AudioController.init()
 		local entity = if ventMap then ventMap:FindFirstChild(activeProfile.id) else nil
 		if entity and entitySound then
 			local state = entity:GetAttribute("EntityState")
-			entitySound.PlaybackSpeed = if state == "Chase" then 1.35 else 1.0
+			if state == "Retreat" then
+				entitySound.PlaybackSpeed = 1.60
+			elseif state == "Chase" then
+				entitySound.PlaybackSpeed = 1.35
+			elseif state == "Stalk" then
+				entitySound.PlaybackSpeed = 0.85
+			elseif state == "Lurk" then
+				entitySound.PlaybackSpeed = 0.55
+			else
+				entitySound.PlaybackSpeed = 1.0
+			end
 		end
 
 		local now = os.clock()

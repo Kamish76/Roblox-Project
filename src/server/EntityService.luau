@@ -16,7 +16,7 @@ local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local MapLayout = require(Shared:WaitForChild("MapLayout"))
 local NetContracts = require(Shared:WaitForChild("NetContracts"))
 
-export type AIState = "Patrol" | "Investigate" | "Chase"
+export type AIState = "Patrol" | "Stalk" | "Lurk" | "Retreat" | "Chase"
 
 local EntityService = {}
 
@@ -31,7 +31,11 @@ local aiState: AIState = "Patrol"
 local pathQueue: { string } = {}
 local pathIndex = 1
 local targetPlayer: Player? = nil
-local investigateTimer = 0
+local lurkTimer = 0
+local stareTimer = 0
+local wasSpotted = false
+local chaseLostTimer = 0
+local retreatCooldownTimer = 0
 
 local lastDetectionTime = 0
 local lastPanicTime = 0
@@ -213,16 +217,162 @@ local function hasLineOfSight(playerHead: BasePart): boolean
 	return result == nil
 end
 
+type VentPlayerInfo = {
+	player: Player,
+	root: BasePart,
+	head: BasePart,
+	dist: number,
+	headlampOn: boolean,
+}
+
+local function getVentPlayers(): { VentPlayerInfo }
+	local list: { VentPlayerInfo } = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player:GetAttribute(NetContracts.Attributes.InSafeRoom) == false
+			and player:GetAttribute(NetContracts.Attributes.IsEliminated) ~= true
+		then
+			local char = player.Character
+			local hum = if char then char:FindFirstChildOfClass("Humanoid") else nil
+			local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+			local head = if char then char:FindFirstChild("Head") :: BasePart? else nil
+			if hum and root and head and hum.Health > 0 then
+				table.insert(list, {
+					player = player,
+					root = root,
+					head = head,
+					dist = (entityCore.Position - root.Position).Magnitude,
+					headlampOn = player:GetAttribute(NetContracts.Attributes.HeadlampOn) == true,
+				})
+			end
+		end
+	end
+	return list
+end
+
+local function pickLurkTileForPlayer(playerTileKey: string): string
+	local queue: { { key: string, depth: number } } = { { key = playerTileKey, depth = 0 } }
+	local visited: { [string]: boolean } = { [playerTileKey] = true }
+	local candidates: { string } = {}
+	local fallback: { string } = {}
+	local idx = 1
+
+	while idx <= #queue do
+		local item = queue[idx]
+		idx += 1
+		if item.depth >= 1 and item.depth <= 2 and item.key ~= MapLayout.DROP_TILE_KEY then
+			local tile = MapLayout.getTileByKey(item.key)
+			if tile and (tile.tileType == "Corner" or tile.tileType == "TJunction" or tile.tileType == "Cross") then
+				table.insert(candidates, item.key)
+			else
+				table.insert(fallback, item.key)
+			end
+		end
+		if item.depth < 2 then
+			for _, neighborKey in ipairs(MapLayout.getNeighbors(item.key)) do
+				if not visited[neighborKey] then
+					visited[neighborKey] = true
+					table.insert(queue, { key = neighborKey, depth = item.depth + 1 })
+				end
+			end
+		end
+	end
+
+	if #candidates > 0 then
+		return candidates[math.random(1, #candidates)]
+	elseif #fallback > 0 then
+		return fallback[math.random(1, #fallback)]
+	end
+	return playerTileKey
+end
+
+local function pickRetreatTile(ventPlayers: { VentPlayerInfo }): string
+	local bestKey = GameConfig.Entity.SpawnTileKey
+	local bestMinDist = -1
+	for _, tile in ipairs(MapLayout.Tiles) do
+		local k = MapLayout.key(tile.gx, tile.gz)
+		if k ~= currentTileKey and k ~= MapLayout.DROP_TILE_KEY then
+			local wp = EntityService.tileKeyToWorld(k)
+			local minDist = math.huge
+			for _, vp in ipairs(ventPlayers) do
+				local d = (wp - vp.root.Position).Magnitude
+				if d < minDist then
+					minDist = d
+				end
+			end
+			if minDist > bestMinDist then
+				bestMinDist = minDist
+				bestKey = k
+			end
+		end
+	end
+	return bestKey
+end
+
+local function isPlayerLookingAtEntity(vp: VentPlayerInfo): boolean
+	local visionRange = if vp.headlampOn then activeProfile.lightAggroRange else 20
+	if vp.dist > visionRange or not hasLineOfSight(vp.head) then
+		return false
+	end
+	local toEntity = entityHead.Position - vp.head.Position
+	if toEntity.Magnitude < 0.01 then
+		return true
+	end
+	return vp.head.CFrame.LookVector:Dot(toEntity.Unit) >= GameConfig.Entity.StareDotThreshold
+end
+
+local function computeLurkPose(basePos: Vector3, playerPos: Vector3): CFrame
+	local bestNeighborPos = playerPos
+	local bestDist = math.huge
+	for _, neighborKey in ipairs(MapLayout.getNeighbors(currentTileKey)) do
+		local np = EntityService.tileKeyToWorld(neighborKey)
+		local d = (np - playerPos).Magnitude
+		if d < bestDist then
+			bestDist = d
+			bestNeighborPos = np
+		end
+	end
+
+	local peekDir = Vector3.new(bestNeighborPos.X - basePos.X, 0, bestNeighborPos.Z - basePos.Z)
+	local peekPos = if peekDir.Magnitude > 0.01
+		then basePos + peekDir.Unit * 1.35
+		else basePos
+	local lookTarget = Vector3.new(playerPos.X, peekPos.Y, playerPos.Z)
+	if (lookTarget - peekPos).Magnitude < 0.05 then
+		return CFrame.new(peekPos)
+	end
+	return CFrame.lookAt(peekPos, lookTarget)
+end
+
+local function enterRetreat(ventPlayers: { VentPlayerInfo })
+	setState("Retreat")
+	targetPlayer = nil
+	stareTimer = 0
+	wasSpotted = false
+	retreatCooldownTimer = GameConfig.Entity.RetreatCooldown
+	setDestination(pickRetreatTile(ventPlayers))
+end
+
+local function enterChase(player: Player)
+	setState("Chase")
+	targetPlayer = player
+	stareTimer = 0
+	wasSpotted = false
+	chaseLostTimer = 0
+end
+
 function EntityService.alertNoise(worldPos: Vector3, radius: number)
-	if aiState == "Chase" then
+	if aiState == "Chase" or aiState == "Retreat" then
 		return
 	end
 	local dist = (entityCore.Position - worldPos).Magnitude
 	if dist <= radius * activeProfile.noiseSensitivity then
 		local goalKey = EntityService.worldToTileKey(worldPos)
-		setState("Investigate")
-		investigateTimer = GameConfig.Entity.InvestigateDuration
-		setDestination(goalKey)
+		if aiState == "Patrol" and retreatCooldownTimer <= 0 then
+			setState("Stalk")
+			stareTimer = 0
+			wasSpotted = false
+		end
+		setDestination(pickLurkTileForPlayer(goalKey))
 	end
 end
 
@@ -249,64 +399,132 @@ function EntityService.setEliminatedCallback(callback: ((player: Player) -> ())?
 	onPlayerEliminatedCallback = callback
 end
 
-local function updateDetectionAndElimination()
-	local bestTarget: Player? = nil
-	local bestDist = math.huge
+local function updateDetectionAndElimination(dt: number)
+	if retreatCooldownTimer > 0 then
+		retreatCooldownTimer = math.max(0, retreatCooldownTimer - dt)
+	end
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player:GetAttribute(NetContracts.Attributes.InSafeRoom) == false
-			and player:GetAttribute(NetContracts.Attributes.IsEliminated) ~= true
-		then
-			local char = player.Character
-			local hum = if char then char:FindFirstChildOfClass("Humanoid") else nil
-			local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
-			local head = if char then char:FindFirstChild("Head") :: BasePart? else nil
+	local ventPlayers = getVentPlayers()
 
-			if hum and root and head and hum.Health > 0 then
-				local dist = (entityCore.Position - root.Position).Magnitude
-				if dist <= GameConfig.Entity.KillRadius then
-					player:SetAttribute(NetContracts.Attributes.IsEliminated, true)
-					eliminatedRemote:FireClient(player, { entityId = activeProfile.id })
-					hum.Health = 0
-					targetPlayer = nil
-					setState("Patrol")
-					setDestination(pickPatrolDestination())
-					if onPlayerEliminatedCallback then
-						onPlayerEliminatedCallback(player)
-					end
-					return
-				end
-
-				local headlampOn = player:GetAttribute(NetContracts.Attributes.HeadlampOn) == true
-				local visionRange = if headlampOn
-					then activeProfile.lightAggroRange
-					else activeProfile.passiveVisionRange
-
-				if dist <= visionRange and hasLineOfSight(head) and dist < bestDist then
-					bestDist = dist
-					bestTarget = player
-				end
+	-- 1. Elimination check in all states
+	for _, vp in ipairs(ventPlayers) do
+		if vp.dist <= GameConfig.Entity.KillRadius then
+			vp.player:SetAttribute(NetContracts.Attributes.IsEliminated, true)
+			eliminatedRemote:FireClient(vp.player, { entityId = activeProfile.id })
+			local hum = vp.player.Character and vp.player.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hum.Health = 0
 			end
+			targetPlayer = nil
+			stareTimer = 0
+			wasSpotted = false
+			setState("Patrol")
+			setDestination(pickPatrolDestination())
+			if onPlayerEliminatedCallback then
+				onPlayerEliminatedCallback(vp.player)
+			end
+			return
 		end
 	end
 
-	if bestTarget then
-		targetPlayer = bestTarget
-		setState("Chase")
-		investigateTimer = GameConfig.Entity.InvestigateDuration
-		local char = bestTarget.Character
-		local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
-		if root then
-			local playerTile = EntityService.worldToTileKey(root.Position)
+	-- 2. Retreat is non-interruptible until it reaches its distant tile
+	if aiState == "Retreat" then
+		return
+	end
+
+	-- 3. Chase logic: pursue nearest visible player, drop to Patrol if sight lost
+	if aiState == "Chase" then
+		local bestTarget: VentPlayerInfo? = nil
+		local bestDist = math.huge
+		for _, vp in ipairs(ventPlayers) do
+			local visionRange = if vp.headlampOn then activeProfile.lightAggroRange else activeProfile.passiveVisionRange
+			if vp.dist <= visionRange and hasLineOfSight(vp.head) and vp.dist < bestDist then
+				bestDist = vp.dist
+				bestTarget = vp
+			end
+		end
+
+		if bestTarget then
+			targetPlayer = bestTarget.player
+			chaseLostTimer = 0
+			local playerTile = EntityService.worldToTileKey(bestTarget.root.Position)
 			if pathQueue[#pathQueue] ~= playerTile then
 				setDestination(playerTile)
 			end
+		else
+			chaseLostTimer += dt
+			if chaseLostTimer >= GameConfig.Entity.ChaseLostSightTimeout then
+				targetPlayer = nil
+				setState("Patrol")
+				setDestination(pickPatrolDestination())
+			end
 		end
-	elseif aiState == "Chase" then
-		-- Lost visual; finish investigating last known tile
-		targetPlayer = nil
-		setState("Investigate")
-		investigateTimer = GameConfig.Entity.InvestigateDuration * 0.7
+		return
+	end
+
+	-- 4. Multiplayer Ambush & Stare checks (Patrol / Stalk / Lurk)
+	local closestVP: VentPlayerInfo? = nil
+	local closestDist = math.huge
+	local spottedBy: VentPlayerInfo? = nil
+	local spottedDist = math.huge
+
+	for _, vp in ipairs(ventPlayers) do
+		if vp.dist < closestDist then
+			closestDist = vp.dist
+			closestVP = vp
+		end
+		if (aiState == "Stalk" or aiState == "Lurk") and vp.dist <= GameConfig.Entity.AmbushRadius then
+			enterChase(vp.player)
+			return
+		end
+		if isPlayerLookingAtEntity(vp) and vp.dist < spottedDist then
+			spottedDist = vp.dist
+			spottedBy = vp
+		end
+	end
+
+	if aiState == "Stalk" or aiState == "Lurk" then
+		if spottedBy then
+			wasSpotted = true
+			stareTimer += dt
+			if stareTimer >= GameConfig.Entity.StareMaxDuration then
+				enterChase(spottedBy.player)
+				return
+			end
+		else
+			if wasSpotted then
+				-- Player looked away / broke gaze in time -> violently scuttle away!
+				enterRetreat(ventPlayers)
+				return
+			end
+			stareTimer = math.max(0, stareTimer - dt * 0.5)
+		end
+
+		if aiState == "Lurk" then
+			lurkTimer -= dt
+			if lurkTimer <= 0 then
+				setState("Patrol")
+				targetPlayer = nil
+				setDestination(pickPatrolDestination())
+			end
+		end
+	elseif aiState == "Patrol" then
+		if spottedBy then
+			-- Spotted while patrolling: briefly freeze/stare or retreat if glanced
+			wasSpotted = true
+			setState("Lurk")
+			targetPlayer = spottedBy.player
+			lurkTimer = GameConfig.Entity.LurkDuration
+			pathQueue = {}
+			pathIndex = 1
+		elseif closestVP and closestDist <= GameConfig.Entity.StalkAcquireRange and retreatCooldownTimer <= 0 then
+			setState("Stalk")
+			targetPlayer = closestVP.player
+			stareTimer = 0
+			wasSpotted = false
+			local playerTile = EntityService.worldToTileKey(closestVP.root.Position)
+			setDestination(pickLurkTileForPlayer(playerTile))
+		end
 	end
 end
 
@@ -352,11 +570,35 @@ local function updatePanicLoop(dt: number)
 end
 
 local function stepMovement(dt: number)
-	if aiState == "Investigate" then
-		investigateTimer -= dt
-		if investigateTimer <= 0 then
-			setState("Patrol")
+	-- Corner-peek Lurk pose: lean slightly past the corner edge facing targetPlayer
+	if aiState == "Lurk" then
+		local basePos = EntityService.tileKeyToWorld(currentTileKey)
+		local targetRoot = if targetPlayer and targetPlayer.Character
+			then targetPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			else nil
+		if targetRoot then
+			positionRig(computeLurkPose(basePos, targetRoot.Position), os.clock(), 0)
+		else
+			positionRig(CFrame.new(basePos), os.clock(), 0)
 		end
+		return
+	end
+
+	-- Freeze in place while spotted in Stalk (tense eye-contact beat before Retreat or Chase)
+	if aiState == "Stalk" and wasSpotted then
+		local currentPos = entityCore.Position
+		local targetRoot = if targetPlayer and targetPlayer.Character
+			then targetPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			else nil
+		if targetRoot then
+			local lookTarget = Vector3.new(targetRoot.Position.X, currentPos.Y, targetRoot.Position.Z)
+			if (lookTarget - currentPos).Magnitude > 0.05 then
+				positionRig(CFrame.lookAt(currentPos, lookTarget), os.clock(), 0)
+				return
+			end
+		end
+		positionRig(entityCore.CFrame, os.clock(), 0)
+		return
 	end
 
 	local targetTile = pathQueue[pathIndex]
@@ -364,15 +606,23 @@ local function stepMovement(dt: number)
 		if aiState == "Patrol" then
 			setDestination(pickPatrolDestination())
 			targetTile = pathQueue[pathIndex]
-		elseif aiState == "Investigate" and investigateTimer <= 0 then
+		elseif aiState == "Retreat" then
 			setState("Patrol")
 			setDestination(pickPatrolDestination())
 			targetTile = pathQueue[pathIndex]
+		elseif aiState == "Stalk" then
+			setState("Lurk")
+			lurkTimer = GameConfig.Entity.LurkDuration
+			return
 		end
 	end
 
-	local moveSpeed = if aiState == "Chase"
+	local moveSpeed = if aiState == "Retreat"
+		then GameConfig.Entity.RetreatSpeed
+		elseif aiState == "Chase"
 		then activeProfile.chaseCadence * 5.0 -- ~9.25 studs/s (faster than 5.5 crawl)
+		elseif aiState == "Stalk"
+		then GameConfig.Entity.StalkSpeed
 		else activeProfile.patrolCadence * MapLayout.CELL_SIZE * GameConfig.Entity.PatrolSpeedMultiplier
 
 	local currentPos = entityCore.Position
@@ -387,10 +637,14 @@ local function stepMovement(dt: number)
 			if pathIndex > #pathQueue then
 				if aiState == "Patrol" then
 					setDestination(pickPatrolDestination())
-				elseif aiState == "Investigate" then
-					-- Pause briefly at noise tile until investigateTimer expires
+				elseif aiState == "Stalk" then
+					setState("Lurk")
+					lurkTimer = GameConfig.Entity.LurkDuration
 					pathQueue = {}
 					pathIndex = 1
+				elseif aiState == "Retreat" then
+					setState("Patrol")
+					setDestination(pickPatrolDestination())
 				end
 			end
 			positionRig(entityCore.CFrame, os.clock(), 0)
@@ -457,8 +711,9 @@ function EntityService.init()
 		stepMovement(dt)
 
 		if now - lastDetectionTime >= 0.15 then
+			local detectDt = now - lastDetectionTime
 			lastDetectionTime = now
-			updateDetectionAndElimination()
+			updateDetectionAndElimination(math.min(detectDt, 0.5))
 		end
 
 		if now - lastPanicTime >= 0.25 then
