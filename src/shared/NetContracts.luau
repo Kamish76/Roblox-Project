@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Canonical network remote, attribute, and CollisionGroup contracts.
+	Canonical network remote, CollectionService tag, Attribute, and CollisionGroup contracts.
 	Any additions or edits here must be synced to docs/ARCHITECTURE.md.
 ]]
 
@@ -13,8 +13,18 @@ local NetContracts = {
 		HeadlampToggled = "HeadlampToggled",
 	},
 
+	Tags = {
+		VentTile = "VentTile",
+		RepairNode = "RepairNode",
+		SectorLED = "SectorLED",
+		SafeRoomZone = "SafeRoomZone",
+		FloorGrate = "FloorGrate",
+	},
+
 	Attributes = {
 		HeadlampOn = "HeadlampOn",
+		InSafeRoom = "InSafeRoom",
+		IsCrawling = "IsCrawling",
 	},
 
 	CollisionGroups = {

@@ -1,9 +1,9 @@
 --!strict
 --[[
-	Client crawl controller:
-	- Locks camera to First Person with crawl eye-height offset & bob.
-	- Disables jumping and interpolates forward/strafe/reverse crawl speed.
-	- Applies procedural R6 Motor6D prone crawl poses across all visible players.
+	Client crawl & Safe Room stance controller:
+	- Locks camera to First Person with stance-aware eye-height offset & bob.
+	- Disables jumping; switches WalkSpeed between Safe Room standing and directional crawl.
+	- Applies procedural R6 Motor6D standing/walking or prone crawl poses across all visible players.
 ]]
 
 local Players = game:GetService("Players")
@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
+local NetContracts = require(Shared:WaitForChild("NetContracts"))
 
 local CrawlController = {}
 
@@ -40,17 +41,30 @@ local function applyPart0Transform(motor: Motor6D?, targetPart0CFrame: CFrame)
 	motor.Transform = restRot:Inverse() * targetPart0CFrame * restRot
 end
 
+local function isPlayerCrawling(player: Player): boolean
+	return player:GetAttribute(NetContracts.Attributes.IsCrawling) == true
+end
+
+local function applyStancePhysics(humanoid: Humanoid, crawling: boolean)
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = 0
+	humanoid.JumpHeight = 0
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+
+	if crawling then
+		humanoid.HipHeight = GameConfig.Crawl.HipHeight
+	else
+		humanoid.HipHeight = GameConfig.SafeRoom.StandingHipHeight
+	end
+end
+
 local function enforceLocalHumanoid(character: Model)
 	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
 	if not humanoid then
 		return
 	end
-	humanoid.UseJumpPower = true
-	humanoid.JumpPower = 0
-	humanoid.JumpHeight = 0
-	humanoid.HipHeight = GameConfig.Crawl.HipHeight
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+	applyStancePhysics(humanoid, isPlayerCrawling(localPlayer))
 end
 
 local function updateLocalMovementAndCamera(dt: number)
@@ -65,25 +79,34 @@ local function updateLocalMovementAndCamera(dt: number)
 		return
 	end
 
-	local camera = workspace.CurrentCamera
-	local lookDir = if camera then camera.CFrame.LookVector else rootPart.CFrame.LookVector
-	local flatLook = Vector3.new(lookDir.X, 0, lookDir.Z)
-	if flatLook.Magnitude > 0.001 then
-		flatLook = flatLook.Unit
-	else
-		flatLook = Vector3.new(0, 0, -1)
+	local crawling = isPlayerCrawling(localPlayer)
+	local expectedHip = if crawling then GameConfig.Crawl.HipHeight else GameConfig.SafeRoom.StandingHipHeight
+	if math.abs(humanoid.HipHeight - expectedHip) > 0.01 then
+		applyStancePhysics(humanoid, crawling)
 	end
 
-	local moveDir = humanoid.MoveDirection
-	local flatMove = Vector3.new(moveDir.X, 0, moveDir.Z)
-	local targetSpeed = GameConfig.Crawl.ForwardWalkSpeed
+	local targetSpeed = GameConfig.SafeRoom.WalkSpeed
+	if crawling then
+		local camera = workspace.CurrentCamera
+		local lookDir = if camera then camera.CFrame.LookVector else rootPart.CFrame.LookVector
+		local flatLook = Vector3.new(lookDir.X, 0, lookDir.Z)
+		if flatLook.Magnitude > 0.001 then
+			flatLook = flatLook.Unit
+		else
+			flatLook = Vector3.new(0, 0, -1)
+		end
 
-	if flatMove.Magnitude > 0.05 then
-		local forwardDot = flatMove.Unit:Dot(flatLook)
-		if forwardDot < -0.35 then
-			targetSpeed = GameConfig.Crawl.ReverseWalkSpeed
-		elseif math.abs(forwardDot) <= 0.45 then
-			targetSpeed = GameConfig.Crawl.StrafeWalkSpeed
+		local moveDir = humanoid.MoveDirection
+		local flatMove = Vector3.new(moveDir.X, 0, moveDir.Z)
+		targetSpeed = GameConfig.Crawl.ForwardWalkSpeed
+
+		if flatMove.Magnitude > 0.05 then
+			local forwardDot = flatMove.Unit:Dot(flatLook)
+			if forwardDot < -0.35 then
+				targetSpeed = GameConfig.Crawl.ReverseWalkSpeed
+			elseif math.abs(forwardDot) <= 0.45 then
+				targetSpeed = GameConfig.Crawl.StrafeWalkSpeed
+			end
 		end
 	end
 
@@ -92,26 +115,37 @@ local function updateLocalMovementAndCamera(dt: number)
 
 	local vel = rootPart.AssemblyLinearVelocity
 	local horizSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
-	local baseOffset = GameConfig.Crawl.BaseCameraOffset
+	local baseOffset = if crawling then GameConfig.Crawl.BaseCameraOffset else GameConfig.SafeRoom.BaseCameraOffset
 
 	local targetOffset: Vector3
-	if horizSpeed > 0.25 then
-		local speedRatio = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.3)
-		bobPhase += dt * GameConfig.Crawl.BobFrequency * speedRatio
-		local bobX = math.cos(bobPhase) * GameConfig.Crawl.BobHorizontalAmp
-		local bobY = math.abs(math.sin(bobPhase)) * GameConfig.Crawl.BobVerticalAmp
-		targetOffset = baseOffset + Vector3.new(bobX, bobY, 0)
+	if crawling then
+		if horizSpeed > 0.25 then
+			local speedRatio = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.3)
+			bobPhase += dt * GameConfig.Crawl.BobFrequency * speedRatio
+			local bobX = math.cos(bobPhase) * GameConfig.Crawl.BobHorizontalAmp
+			local bobY = math.abs(math.sin(bobPhase)) * GameConfig.Crawl.BobVerticalAmp
+			targetOffset = baseOffset + Vector3.new(bobX, bobY, 0)
+		else
+			bobPhase += dt * 1.6
+			local breathY = math.sin(bobPhase) * 0.015
+			targetOffset = baseOffset + Vector3.new(0, breathY, 0)
+		end
 	else
-		bobPhase += dt * 1.6
-		local breathY = math.sin(bobPhase) * 0.015
-		targetOffset = baseOffset + Vector3.new(0, breathY, 0)
+		if horizSpeed > 0.35 then
+			local speedRatio = math.clamp(horizSpeed / GameConfig.SafeRoom.WalkSpeed, 0.2, 1.2)
+			bobPhase += dt * 7.5 * speedRatio
+			local bobY = math.abs(math.sin(bobPhase)) * 0.05
+			targetOffset = baseOffset + Vector3.new(0, bobY, 0)
+		else
+			targetOffset = baseOffset
+		end
 	end
 
 	local camAlpha = 1 - math.exp(-14 * dt)
 	humanoid.CameraOffset = humanoid.CameraOffset:Lerp(targetOffset, camAlpha)
 end
 
-local function updateCharacterCrawlPose(player: Player, dt: number)
+local function updateCharacterPose(player: Player, dt: number)
 	local character = player.Character
 	if not character then
 		return
@@ -134,30 +168,49 @@ local function updateCharacterCrawlPose(player: Player, dt: number)
 	local vel = rootPart.AssemblyLinearVelocity
 	local horizVel = Vector3.new(vel.X, 0, vel.Z)
 	local horizSpeed = horizVel.Magnitude
+	local crawling = isPlayerCrawling(player)
 
 	local phase = playerPhases[player] or 0
 	local isMoving = horizSpeed > 0.25
-	if isMoving then
-		local dirSign = if horizVel:Dot(rootPart.CFrame.LookVector) >= -0.1 then 1 else -1
-		local strideScale = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.4)
-		phase += dt * 6.5 * strideScale * dirSign
+
+	if crawling then
+		if isMoving then
+			local dirSign = if horizVel:Dot(rootPart.CFrame.LookVector) >= -0.1 then 1 else -1
+			local strideScale = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.4)
+			phase += dt * 6.5 * strideScale * dirSign
+		end
+		playerPhases[player] = phase
+
+		local armSwing = if isMoving then math.sin(phase) * 28 else 0
+		local legSwing = if isMoving then math.sin(phase) * 22 else 0
+		local rollSway = if isMoving then math.sin(phase) * 6 else math.sin(os.clock() * 1.4) * 1.2
+
+		-- Lay Torso prone (-82 deg pitch) and tuck backward slightly so Head clears duct walls.
+		applyPart0Transform(
+			rootJoint,
+			CFrame.new(0, -0.35, 0.55) * CFrame.Angles(-math.rad(82), 0, math.rad(rollSway))
+		)
+		applyPart0Transform(neck, CFrame.Angles(math.rad(72), 0, 0))
+		applyPart0Transform(leftShoulder, CFrame.Angles(math.rad(152 + armSwing), 0, math.rad(-10)))
+		applyPart0Transform(rightShoulder, CFrame.Angles(math.rad(152 - armSwing), 0, math.rad(10)))
+		applyPart0Transform(leftHip, CFrame.Angles(math.rad(-14 - legSwing), 0, math.rad(-7)))
+		applyPart0Transform(rightHip, CFrame.Angles(math.rad(-14 + legSwing), 0, math.rad(7)))
+	else
+		if isMoving then
+			local dirSign = if horizVel:Dot(rootPart.CFrame.LookVector) >= -0.1 then 1 else -1
+			local strideScale = math.clamp(horizSpeed / GameConfig.SafeRoom.WalkSpeed, 0.2, 1.3)
+			phase += dt * 8.0 * strideScale * dirSign
+		end
+		playerPhases[player] = phase
+
+		local stride = if isMoving then math.sin(phase) * 26 else 0
+		applyPart0Transform(rootJoint, CFrame.identity)
+		applyPart0Transform(neck, CFrame.identity)
+		applyPart0Transform(leftShoulder, CFrame.Angles(math.rad(stride), 0, math.rad(-4)))
+		applyPart0Transform(rightShoulder, CFrame.Angles(math.rad(-stride), 0, math.rad(4)))
+		applyPart0Transform(leftHip, CFrame.Angles(math.rad(-stride), 0, 0))
+		applyPart0Transform(rightHip, CFrame.Angles(math.rad(stride), 0, 0))
 	end
-	playerPhases[player] = phase
-
-	local armSwing = if isMoving then math.sin(phase) * 28 else 0
-	local legSwing = if isMoving then math.sin(phase) * 22 else 0
-	local rollSway = if isMoving then math.sin(phase) * 6 else math.sin(os.clock() * 1.4) * 1.2
-
-	-- Lay Torso prone (-82 deg pitch) and tuck backward slightly so Head clears duct walls.
-	applyPart0Transform(
-		rootJoint,
-		CFrame.new(0, -0.35, 0.55) * CFrame.Angles(-math.rad(82), 0, math.rad(rollSway))
-	)
-	applyPart0Transform(neck, CFrame.Angles(math.rad(72), 0, 0))
-	applyPart0Transform(leftShoulder, CFrame.Angles(math.rad(152 + armSwing), 0, math.rad(-10)))
-	applyPart0Transform(rightShoulder, CFrame.Angles(math.rad(152 - armSwing), 0, math.rad(10)))
-	applyPart0Transform(leftHip, CFrame.Angles(math.rad(-14 - legSwing), 0, math.rad(-7)))
-	applyPart0Transform(rightHip, CFrame.Angles(math.rad(-14 + legSwing), 0, math.rad(7)))
 end
 
 function CrawlController.init()
@@ -175,6 +228,14 @@ function CrawlController.init()
 		task.spawn(enforceLocalHumanoid, localPlayer.Character)
 	end
 
+	localPlayer:GetAttributeChangedSignal(NetContracts.Attributes.IsCrawling):Connect(function()
+		local char = localPlayer.Character
+		local hum = if char then char:FindFirstChildOfClass("Humanoid") else nil
+		if hum then
+			applyStancePhysics(hum, isPlayerCrawling(localPlayer))
+		end
+	end)
+
 	RunService.RenderStepped:Connect(function(dt: number)
 		updateLocalMovementAndCamera(dt)
 	end)
@@ -182,7 +243,7 @@ function CrawlController.init()
 	if GameConfig.Crawl.CustomCrawlAnimationId == "" then
 		RunService.Stepped:Connect(function(_time: number, dt: number)
 			for _, player in ipairs(Players:GetPlayers()) do
-				updateCharacterCrawlPose(player, dt)
+				updateCharacterPose(player, dt)
 			end
 		end)
 	end

@@ -1,7 +1,7 @@
 --!strict
 --[[
-	Server-authoritative player crawl physics, CollisionGroup registration,
-	and Headlamp state replication for 1-4 co-op players.
+	Server-authoritative player stance (Safe Room standing vs Vent crawling),
+	CollisionGroup registration, DropShaft hatch prompts, and Headlamp replication.
 ]]
 
 local PhysicsService = game:GetService("PhysicsService")
@@ -21,7 +21,10 @@ local LIMB_NAMES = {
 	["Right Arm"] = true,
 }
 
+local STANCE_COOLDOWN = 0.6
+
 local toggleTimestamps: { [Player]: number } = {}
+local stanceTimestamps: { [Player]: number } = {}
 local charConnections: { [Player]: { RBXScriptConnection } } = {}
 local initialized = false
 
@@ -61,6 +64,51 @@ local function clearCharacterConnections(player: Player)
 	end
 end
 
+function PlayerStateService.setStance(player: Player, inSafeRoom: boolean, targetCFrame: CFrame?)
+	local isCrawling = not inSafeRoom
+	player:SetAttribute(NetContracts.Attributes.InSafeRoom, inSafeRoom)
+	player:SetAttribute(NetContracts.Attributes.IsCrawling, isCrawling)
+
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local rootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not humanoid then
+		return
+	end
+
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = 0
+	humanoid.JumpHeight = 0
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+
+	if isCrawling then
+		humanoid.HipHeight = GameConfig.Crawl.HipHeight
+		humanoid.WalkSpeed = GameConfig.Crawl.ForwardWalkSpeed
+	else
+		humanoid.HipHeight = GameConfig.SafeRoom.StandingHipHeight
+		humanoid.WalkSpeed = GameConfig.SafeRoom.WalkSpeed
+	end
+
+	if targetCFrame and rootPart and rootPart.Parent then
+		rootPart.AssemblyLinearVelocity = Vector3.zero
+		rootPart.AssemblyAngularVelocity = Vector3.zero
+		character:PivotTo(targetCFrame)
+	end
+end
+
+function PlayerStateService.transitionToVents(player: Player)
+	PlayerStateService.setStance(player, false, GameConfig.Crawl.DropEntryCFrame)
+end
+
+function PlayerStateService.transitionToSafeRoom(player: Player)
+	PlayerStateService.setStance(player, true, GameConfig.SafeRoom.ReturnCFrame)
+end
+
 local function onCharacterAdded(player: Player, character: Model)
 	clearCharacterConnections(player)
 
@@ -69,15 +117,6 @@ local function onCharacterAdded(player: Player, character: Model)
 	if not humanoid or not rootPart then
 		return
 	end
-
-	humanoid.WalkSpeed = GameConfig.Crawl.ForwardWalkSpeed
-	humanoid.UseJumpPower = true
-	humanoid.JumpPower = 0
-	humanoid.JumpHeight = 0
-	humanoid.HipHeight = GameConfig.Crawl.HipHeight
-
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-	humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
 
 	for _, descendant in ipairs(character:GetDescendants()) do
 		if descendant:IsA("BasePart") then
@@ -90,17 +129,22 @@ local function onCharacterAdded(player: Player, character: Model)
 			configureCharacterPart(descendant)
 		end
 	end)
-
 	charConnections[player] = { descConn }
 
-	-- Enclosed 4.2-stud duct ceilings can cause Roblox SpawnLocation to push spawns onto the roof;
-	-- snap the character inside TestSpawn when present.
-	local testBox = workspace:FindFirstChild("M1_TestVentBox")
-	local ventSpawn = if testBox then testBox:FindFirstChild("TestSpawn", true) else nil
-	if ventSpawn and ventSpawn:IsA("BasePart") then
+	-- Default spawn inside Safe Room standing stance
+	PlayerStateService.setStance(player, true, nil)
+
+	-- Defensive spawn clamp: if SafeRoom exists and Roblox placed character outside/on roof, snap cleanly to SafeSpawn
+	local ventMap = workspace:FindFirstChild("VentMap")
+	local safeRoom = if ventMap then ventMap:FindFirstChild("SafeRoom") else nil
+	local safeSpawn = if safeRoom then safeRoom:FindFirstChild("SafeSpawn", true) else nil
+	if safeSpawn and safeSpawn:IsA("BasePart") then
 		task.defer(function()
-			if character.Parent and rootPart.Parent and rootPart.Position.Y > ventSpawn.Position.Y + 3.0 then
-				character:PivotTo(CFrame.new(ventSpawn.Position.X, ventSpawn.Position.Y + 1.35, ventSpawn.Position.Z))
+			if character.Parent and rootPart.Parent then
+				local y = rootPart.Position.Y
+				if y > GameConfig.SafeRoom.FloorY + GameConfig.SafeRoom.CeilingHeight + 0.5 or y < GameConfig.SafeRoom.FloorY - 0.5 then
+					PlayerStateService.setStance(player, true, GameConfig.SafeRoom.ReturnCFrame)
+				end
 			end
 		end)
 	end
@@ -108,7 +152,10 @@ end
 
 local function onPlayerAdded(player: Player)
 	player:SetAttribute(NetContracts.Attributes.HeadlampOn, true)
+	player:SetAttribute(NetContracts.Attributes.InSafeRoom, true)
+	player:SetAttribute(NetContracts.Attributes.IsCrawling, false)
 	toggleTimestamps[player] = 0
+	stanceTimestamps[player] = 0
 
 	player.CharacterAdded:Connect(function(character)
 		onCharacterAdded(player, character)
@@ -121,7 +168,46 @@ end
 
 local function onPlayerRemoving(player: Player)
 	toggleTimestamps[player] = nil
+	stanceTimestamps[player] = nil
 	clearCharacterConnections(player)
+end
+
+local function wireDropShaftPrompts()
+	local ventMap = workspace:WaitForChild("VentMap", 15)
+	if not ventMap then
+		return
+	end
+
+	local function bindPrompt(prompt: ProximityPrompt, toVents: boolean)
+		prompt.Triggered:Connect(function(player: Player)
+			local now = os.clock()
+			if now - (stanceTimestamps[player] or 0) < STANCE_COOLDOWN then
+				return
+			end
+			stanceTimestamps[player] = now
+
+			if toVents then
+				PlayerStateService.transitionToVents(player)
+			else
+				PlayerStateService.transitionToSafeRoom(player)
+			end
+		end)
+	end
+
+	local function checkInstance(inst: Instance)
+		if inst:IsA("ProximityPrompt") then
+			if inst.Name == "DropToVents" then
+				bindPrompt(inst, true)
+			elseif inst.Name == "ClimbToSafeRoom" then
+				bindPrompt(inst, false)
+			end
+		end
+	end
+
+	for _, desc in ipairs(ventMap:GetDescendants()) do
+		checkInstance(desc)
+	end
+	ventMap.DescendantAdded:Connect(checkInstance)
 end
 
 function PlayerStateService.init()
@@ -155,6 +241,8 @@ function PlayerStateService.init()
 	for _, player in ipairs(Players:GetPlayers()) do
 		task.spawn(onPlayerAdded, player)
 	end
+
+	task.spawn(wireDropShaftPrompts)
 end
 
 return PlayerStateService

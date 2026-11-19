@@ -1,9 +1,19 @@
 --!strict
 --[[
-	Shared configuration for M1+ crawl physics, headlamp optics, and modular vent standards.
+	Shared configuration for M1/M2 crawl physics, Safe Room standing defaults,
+	headlamp optics, and modular vent kit standards.
 ]]
 
 local GameConfig = {
+	SafeRoom = {
+		WalkSpeed = 10,
+		StandingHipHeight = 0,
+		BaseCameraOffset = Vector3.zero,
+		FloorY = 14.0,
+		CeilingHeight = 9.0,
+		ReturnCFrame = CFrame.new(0, 17.1, 4.0),
+	},
+
 	Crawl = {
 		ForwardWalkSpeed = 5.5,
 		StrafeWalkSpeed = 4.2,
@@ -17,6 +27,7 @@ local GameConfig = {
 		BobFrequency = 6.2,
 		-- Leave empty to use procedural Motor6D crawl; set to "rbxassetid://..." to use an uploaded R6 Animation.
 		CustomCrawlAnimationId = "",
+		DropEntryCFrame = CFrame.new(0, 5.4, 0),
 	},
 
 	Headlamp = {
@@ -38,6 +49,7 @@ local GameConfig = {
 		InteriorWidth = 4.6,
 		InteriorHeight = 4.2,
 		WallThickness = 0.6,
+		FloorY = 4.0,
 	},
 }
 
