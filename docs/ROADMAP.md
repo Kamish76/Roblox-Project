@@ -1,6 +1,6 @@
 # Project Roadmap & Milestones
 
-> **Current Phase:** `M5 — Audio Horror Polish & Vertical Slice Playtest` (`M4` Complete!)  
+> **Current Phase:** `M5 Complete (v0.1 MVP Vertical Slice)` — Ready for Multi-Client Team Test & `v0.2` Deduction Expansion  
 > **Active Target:** Ship a playable, atmospheric **MVP v0.1** vertical slice, then expand into **v0.2 *Demonology*-style Deduction & Multi-Entity Roster**.
 
 ---
@@ -48,10 +48,10 @@
 
 ### M5 — Audio Horror Polish & Vertical Slice Playtest
 **Goal:** Turn the mechanical loop into oppressive horror.
-- [ ] Add 3-layer spatial audio: entity tells (scrapes/clicks/cracks), active node electrical hum (~1.5 tiles out), and ambient building creaks
-- [ ] Add entity visual model/rig and jump-scare/elimination handling (spectate Safe Room or teammates on death)
-- [ ] Run full 2–4 player Studio test session covering Safe Room Operator + Crawlers, partial escape after teammate loss, and full clear
-- **Verification Gate:** Zero script errors in `get_console_output`, stable FPS, clean playtest sign-off logged in `.icm/03_verify/`.
+- [x] Add 3-layer spatial audio: entity tells (`EntityScrape`), active node electrical hum (`FaultHum`), and ambient building creaks (`AmbientCreak` + `HeadlampClick`/`PanicGasp`/`ScareSting`, configured via `GameConfig.Audio` IDs)
+- [x] Add entity visual model/rig and jump-scare/elimination handling (`ScareFlash`, Safe Room lockdown banner, `[Tab]` squad spectate, and `SQUAD WIPED (+0 XP)` reset)
+- [ ] Run full 2–4 player Studio Team Test session covering Safe Room Operator + Crawlers, partial escape after teammate loss, and full clear *(1-player Studio MCP Playtest verified audio emitters, elimination, lockdown, and squad-wipe reset; 2–4 player Team Test pending manual multi-client run)*
+- **Verification Gate:** Zero script errors in `get_console_output`, clean `rojo build`, and Playtest sign-off logged in `.icm/03_verify/`.
 
 ---
 

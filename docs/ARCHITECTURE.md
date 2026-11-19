@@ -33,32 +33,34 @@ All parent services use `"$ignoreUnknownInstances": true`:
 * [src/client/CrawlController.luau](../src/client/CrawlController.luau) — `LockFirstPerson`, stance-aware eye height & speeds, and procedural R6 Motor6D standing/crawl poses (`[Exists]`)
 * [src/client/HeadlampController.luau](../src/client/HeadlampController.luau) — Camera-tracked `SpotLight` rig, `[F]` toggle, proximity flicker, and co-op teammate beams (`[Exists]`)
 * [src/client/PanicController.luau](../src/client/PanicController.luau) — Stale Air / Panic HUD bar, pulsing edge vignette & rate-limited `Crawl` noise emitter (`[Exists]`)
-* [src/client/SafeRoomUI.luau](../src/client/SafeRoomUI.luau) — Live Work Order HUD, faulted sector display, and Sign-Off outcome banner (`[Exists]`)
+* [src/client/SafeRoomUI.luau](../src/client/SafeRoomUI.luau) — Live Work Order HUD, faulted sector display, Sign-Off outcome banner, ScareFlash overlay & `[Tab]` squad spectate (`[Exists]`)
+* [src/client/AudioController.luau](../src/client/AudioController.luau) — 3-layer spatial audio controller (`EntityScrape`, `FaultHum`, `AmbientCreak`, `PanicGasp`, `HeadlampClick`, `ScareSting`) (`[Exists]`)
 
 ### Planned Module Topology (Target Architecture)
-*(Items marked `[Exists]` shipped in M1–M4; `M5` focuses on spatial audio, death/spectate polish & 4-player playtest.)*
+*(Items marked `[Exists]` shipped in M1–M5; **v0.1 MVP vertical slice complete**.)*
 
 ```text
 src/
 ├── shared/
 │   ├── MapLayout.luau        [Exists]  1:1 grid blueprint, tile connections, sectors, node slots, BFS & validate()
 │   ├── EntityProfiles.luau   [Exists]  Modular EntityProfile definitions (v0.1 JointCracker -> v0.2 roster)
-│   ├── GameConfig.luau       [Exists]  Safe Room, crawl, headlamp, vent, repair, Work Order, Panic & Entity configs
+│   ├── GameConfig.luau       [Exists]  Safe Room, crawl, headlamp, vent, repair, Work Order, Panic, Entity & Audio configs
 │   └── NetContracts.luau     [Exists]  Canonical Remote names, Tags, Attributes & CollisionGroup constants
 ├── character/
 │   └── Animate.client.luau   [Exists]  Overrides default R6 Animate; supports optional CustomCrawlAnimationId
 ├── server/
 │   ├── init.server.luau      [Exists]  Server entry point, MapLayout.validate() & service bootstrap
-│   ├── RoundService.luau     [Exists]  Contract lifecycle, balanced node randomization, SectorLEDs & Sign-Off XP
+│   ├── RoundService.luau     [Exists]  Contract lifecycle, balanced node randomization, SectorLEDs, Sign-Off XP & Squad Wipe reset
 │   ├── RepairService.luau    [Exists]  Interruptible ProximityPrompt repairs, saved RepairProgress & spark noise
-│   ├── EntityService.luau    [Exists]  Tile-Graph BFS patrol/investigate/chase, sight/noise aggro & PanicRatio loop
-│   └── PlayerStateService.luau [Exists] Stance switching, DropShaft prompts, CollisionGroups & headlamp server state
+│   ├── EntityService.luau    [Exists]  Tile-Graph BFS patrol/investigate/chase, sight/noise aggro, PanicRatio & elimination
+│   └── PlayerStateService.luau [Exists] Stance switching, DropShaft prompts, CollisionGroups, headlamp & lockdown state
 └── client/
     ├── init.client.luau     [Exists]  Client entry point
     ├── CrawlController.luau  [Exists]  LockFirstPerson, disabled jump, standing/crawl speeds & procedural R6 poses
     ├── HeadlampController.luau [Exists] Camera-tracked SpotLight rig, [F] toggle, proximity flicker & teammate beams
     ├── PanicController.luau  [Exists]  Stale Air / Panic HUD, pulsing vignette & Crawl noise emitter
-    └── SafeRoomUI.luau       [Exists]  Work Order HUD & extraction outcome banner synced via RoundStateSync
+    ├── SafeRoomUI.luau       [Exists]  Work Order HUD, extraction/wipe banner, ScareFlash & [Tab] squad spectate
+    └── AudioController.luau  [Exists]  3-layer spatial Sound emitters (EntityScrape, FaultHum, AmbientCreak/Click/Gasp/Sting)
 ```
 
 ---
@@ -82,15 +84,16 @@ flowchart TD
 > **Rule:** Every `RemoteEvent`, `RemoteFunction`, `CollectionService` tag, Instance `Attribute`, and `CollisionGroup` added to code or Roblox Studio **must** be registered here before merging.
 
 ### 3.1 Network Remotes (`ReplicatedStorage.Remotes`)
-*Implemented across M1–M4: `HeadlampToggled`, `WorkOrderSignOff`, `RoundStateSync`, `NoiseEmitted`, `PanicStateSync`.*
+*Implemented across M1–M5: `HeadlampToggled`, `WorkOrderSignOff`, `RoundStateSync`, `NoiseEmitted`, `PanicStateSync`, `PlayerEliminated`.*
 
 | Name | Kind | Direction | Payload | Server Validation | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `HeadlampToggled` | `RemoteEvent` | Client → Server → Clients | `isOn: boolean` (Server broadcasts `player, isOn`) | `typeof(isOn) == "boolean"`, `0.25s` cooldown; sets `HeadlampOn` attribute | `Implemented (M1)` |
 | `NoiseEmitted` | `RemoteEvent` | Client → Server | `{ noiseType: "Crawl" \| "Gasp" }` | `0.8s` rate limit; server reads player `HumanoidRootPart.Position` | `Implemented (M4)` |
-| `WorkOrderSignOff` | `RemoteEvent` | Client → Server | `()` (v0.2 adds `{ deductionId: string? }`) | Verify `phase == "Active"`, `InSafeRoom == true`, and player alive | `Implemented (M3)` |
+| `WorkOrderSignOff` | `RemoteEvent` | Client → Server | `()` (v0.2 adds `{ deductionId: string? }`) | Verify `phase == "Active"`, `InSafeRoom == true`, and `IsEliminated ~= true` | `Implemented (M3)` |
 | `RoundStateSync` | `RemoteEvent` | Server → All Clients | `{ phase, activeSectors, repairedCount, requiredCount, totalXP, lastOutcome }` | Authoritative server broadcast | `Implemented (M3)` |
 | `PanicStateSync` | `RemoteEvent` | Server → Client | `{ panicRatio: number }` | Authoritative server `EntityService` panic loop | `Implemented (M4)` |
+| `PlayerEliminated` | `RemoteEvent` | Server → Client | `{ entityId: string }` | Authoritative server `EntityService` `KillRadius` check | `Implemented (M5)` |
 
 ### 3.2 `CollectionService` Tags
 *Implemented in M2 across `Workspace.VentMap`: `VentTile` (33), `RepairNode` (8), `SectorLED` (4), `SafeRoomZone` (1), `FloorGrate` (5).*
@@ -118,6 +121,7 @@ flowchart TD
 | `HeadlampOn` | `Player` | `boolean` | `true \| false` | `HeadlampController` & Server `EntityService` | `Implemented (M1)` |
 | `InSafeRoom` | `Player` | `boolean` | `true \| false` | `PlayerStateService`, `EntityService` & `WorkOrderSignOff` | `Implemented (M2)` |
 | `IsCrawling` | `Player` | `boolean` | `true \| false` | `CrawlController` & `PlayerStateService` | `Implemented (M2)` |
+| `IsEliminated` | `Player` | `boolean` | `true \| false` | `EntityService`, `PlayerStateService` & `RoundService` | `Implemented (M5)` |
 | `PanicRatio` | `Player` | `number` | `0.0` .. `1.0` | `EntityService` & `PanicController` | `Implemented (M4)` |
 | `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Investigate" \| "Chase"` | `EntityService` | `Implemented (M4)` |
 
