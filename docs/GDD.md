@@ -130,4 +130,4 @@ export type EntityProfile = {
 | `OD-01` | **MVP Entity #1 Selection** | **The Joint-Cracker** (*"The Crawlspace"* / *The Rake* archetype — faint yellow eye-shine, wet joint-cracking & whispers, light-reactive headlamp aggro + noise investigation) | **Locked** (`ADR-006`) |
 | `OD-02` | **v0.1 Deduction Scope** | **MVP v0.1 ships with 1 Entity (`Joint-Cracker`)** driven by modular `EntityProfile` (`src/shared/EntityProfiles.luau`); **v0.2** unlocks *Demonology*-style multi-entity deduction starting with **The Clicking Crawler** as Entity #2 | **Locked** (`ADR-006`) |
 | `OD-03` | **Grid Cell Footprint** | **`8×8` studs** (`4.6×4.2` stud interior clearance, `0.6+` stud walls) verified snag-free in M1 R6 Playtest | **Validated (`M1`)** |
-| `OD-04` | **Active Repairs Per Contract** | Fixed count (e.g., `5` active out of `8–10` total nodes) vs. scaling with squad size (`1–4` players) | **Open** — tune in M3 |
+| `OD-04` | **Active Repairs Per Contract** | **`5` active faults out of `8` total nodes** per contract (`GameConfig.Repair.ActiveFaultCount = 5`, balanced across sectors) | **Locked (`M3`)** |

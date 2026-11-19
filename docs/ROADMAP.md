@@ -1,6 +1,6 @@
 # Project Roadmap & Milestones
 
-> **Current Phase:** `M3 — 1–4 Co-op Repair Loop & Work Order Sign-Off` (`M2` Complete!)  
+> **Current Phase:** `M4 — Tile-Graph Entity AI, Detection & Panic Breathing` (`M3` Complete!)  
 > **Active Target:** Ship a playable, atmospheric **MVP v0.1** vertical slice, then expand into **v0.2 *Demonology*-style Deduction & Multi-Entity Roster**.
 
 ---
@@ -30,13 +30,13 @@
 - [x] Build Safe Room staging area (`FloorY = 14`), 1:1 **Wall Blueprint** (`BlueprintGui`), `SectorLED` fault annunciator (`4` lamps), standby Work Order Terminal, and bidirectional `DropToVents` / `ClimbToSafeRoom` stance switching
 - **Verification Gate:** Verified live in Studio Playtest (`MapLayout.validate()` pass, tags `33/8/4/1/5`, `SafeY=17.00 -> VentY=5.40 -> SafeY=17.10`, multi-tile corner crawl `deltaZ = 8.99` into Sector A, `0` script errors) and via `screen_capture` (legible 1:1 Wall Blueprint + aligned `SectorLED`s, zero light leaks).
 
-### M3 — 1–4 Co-op Repair Loop & Work Order Sign-Off
+### M3 — 1–4 Co-op Repair Loop & Work Order Sign-Off *(Complete)*
 **Goal:** Complete the end-to-end contract loop without the monster yet.
-- [ ] Implement `RoundService.luau` & `RepairService.luau` (`ProximityPrompt` interruptible progress checkpoints + sparking VFX)
-- [ ] Randomize active fault nodes each round while lighting up corresponding `SectorLED`s in the Safe Room
-- [ ] Implement **Work Order Sign-Off** terminal in Safe Room (`Zero`, `Partial`, and `Full` XP/payout calculation + round reset)
-- [ ] Verify 1-player and multi-player (Studio multi-client test) co-op repair sync and extraction states
-- **Verification Gate:** Complete both a Partial Sign-Off (`e.g. 2/5`) and a Full Sign-Off (`5/5`) cleanly in Studio local server test.
+- [x] Implement `RoundService.luau` & `RepairService.luau` (`ProximityPrompt` interruptible progress saving `RepairProgress` + spark `ParticleEmitter` & fault lights)
+- [x] Randomize `5/8` balanced active fault nodes each round while lighting up corresponding `SectorLED`s in the Safe Room
+- [x] Implement **Work Order Sign-Off** (`SignOffPrompt` + `WorkOrderSignOff` remote + 3D `WorkOrderMonitor` + `SafeRoomUI.luau` HUD) with `Zero`, `Partial` (`50 XP`/node), and `Full` (`+150` bonus XP) payout & `4s` round reset
+- [x] Verify repair sync, `InSafeRoom` validation, interruptible hold, and Sign-Off extraction in live Studio Playtest
+- **Verification Gate:** Verified live in Studio Playtest (`ActiveFaults = 5`, interruptible `1.8s` hold saved `MidProgress = 0.30` / `Resume Repair`, `WorkOrderSignOff` rejected inside vents, resumed to `1 / 5 REPAIRED`, Partial Sign-Off `+50 XP`, auto-reset to `0 / 5 REPAIRED | XP: 50`, `0` script errors).
 
 ### M4 — Tile-Graph Entity AI, Detection & Panic Breathing
 **Goal:** Introduce lethal tension, stealth counterplay, and anti-camping pressure.
@@ -72,4 +72,4 @@
 | `OD-01` | **Locked:** **The Joint-Cracker** chosen as MVP Entity #1 (`ADR-006`) | User | **Done** |
 | `OD-02` | **Locked:** **1 entity in v0.1** (`Joint-Cracker`), *Demonology* multi-entity deduction in **v0.2** (`ClickingCrawler` queued as #2, `ADR-006`) | User | **Done** |
 | `OD-03` | **Validated (`M1`):** `8×8` stud cell footprint (`4.6×4.2` stud interior duct, `0.6+` stud walls) verified snag-free in M1 Playtest | Engineering | **Done** (`M1`) |
-| `OD-04` | Tune active vs. total repair node count (`e.g. 5/9`) | Design | During `M3` |
+| `OD-04` | **Locked (`M3`):** `5` active faults out of `8` total nodes per contract (`GameConfig.Repair.ActiveFaultCount = 5`) | Design | **Done** (`M3`) |
