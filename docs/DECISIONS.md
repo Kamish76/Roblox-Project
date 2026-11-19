@@ -65,3 +65,10 @@ Record every significant technical, structural, or gameplay tradeoff here. Once 
 - **Context:** Uploaded Roblox `Animation` assets are tied to creator/group permissions and fail to play across different Studio/Team Create environments unless re-uploaded under the active place owner.
 - **Decision:** Replace the default R6 `Animate` script via `StarterCharacterScripts.Animate` (`src/character/Animate.client.luau`) and drive all players' R6 crawl poses procedurally via conjugated `Motor6D.Transform` updates inside `CrawlController.luau`, while exposing `GameConfig.Crawl.CustomCrawlAnimationId` as an optional drop-in override for custom keyframed animations.
 - **Consequences:** Every player and co-op teammate renders a responsive forward/reverse prone crawl immediately with zero external asset dependency, while keeping full support for bespoke uploaded animations later.
+
+## ADR-008: Enforce R6 Vent Technician Rig via `StarterPlayer.StarterCharacter` & Unified Lighting `LightingStyle.Realistic`
+- **Status:** Accepted
+- **Date:** 2026-11-19
+- **Context:** Studio's `AvatarSettings.DefaultAvatarRules.AvatarBodyRules` defaults to `R15` (inaccessible from `execute_luau` script security contexts) and UGC accessories clip into `4.6×4.2` vents. Furthermore, this Studio build runs Unified Lighting (`Enum.LightingStyle`), where legacy `Enum.LightingTechnology` no longer exists.
+- **Decision:** Spawn a uniform R6 Vent Technician jumpsuit rig via Studio-owned `StarterPlayer.StarterCharacter` (built from `Players:CreateHumanoidModelFromDescription(..., Enum.HumanoidRigType.R6)` with `"$ignoreUnknownInstances": true` on `StarterPlayer`), and configure pitch-black Unified Lighting using `Lighting.LightingStyle = Enum.LightingStyle.Realistic` and `PrioritizeLightingQuality = true`.
+- **Consequences:** 100% deterministic R6 spawning and clean silhouette readability across co-op squads with zero accessory snagging or `AvatarSettings` dependency. Also requires `PlayerStateService` to clamp spawns inside enclosed `4.2`-stud ducts (`SpawnLocation` otherwise pushes spawns onto the duct roof).

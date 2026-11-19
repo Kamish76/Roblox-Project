@@ -15,32 +15,42 @@ All parent services use `"$ignoreUnknownInstances": true`:
 * `src/shared` → `ReplicatedStorage.Shared`
 * `src/server` → `ServerScriptService.Server`
 * `src/client` → `StarterPlayer.StarterPlayerScripts.Client`
+* `src/character/Animate.client.luau` → `StarterPlayer.StarterCharacterScripts.Animate`
+* **Studio-Owned Starter Character:** `StarterPlayer.StarterCharacter` (R6 Vent Technician jumpsuit rig; preserved via `"$ignoreUnknownInstances": true` per [ADR-008](./DECISIONS.md#adr-008-enforce-r6-vent-technician-rig-via-starterplayerstartercharacter--unified-lighting-lightingstylerealistic))
 
 ### Current Repository Baseline (`src/`)
-* [src/client/init.client.luau](../src/client/init.client.luau) — Client bootstrap stub (`[Exists]`)
-* [src/server/init.server.luau](../src/server/init.server.luau) — Server bootstrap stub requiring `ReplicatedStorage.Shared.Hello` (`[Exists]`)
-* [src/shared/Hello.luau](../src/shared/Hello.luau) — Shared stub module (`[Exists]`)
+* [src/shared/GameConfig.luau](../src/shared/GameConfig.luau) — Shared crawl speeds, headlamp optics, and modular vent kit dimensions (`[Exists]`)
+* [src/shared/NetContracts.luau](../src/shared/NetContracts.luau) — Canonical remote, attribute, and `CollisionGroup` names (`[Exists]`)
+* [src/shared/EntityProfiles.luau](../src/shared/EntityProfiles.luau) — Modular `EntityProfile` registry (`JointCracker` active MVP, `ClickingCrawler` queued v0.2) (`[Exists]`)
+* [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point bootstrapping `PlayerStateService` (`[Exists]`)
+* [src/server/PlayerStateService.luau](../src/server/PlayerStateService.luau) — Crawl physics, `CollisionGroup`s, vent spawn clamp, and `HeadlampToggled` authority (`[Exists]`)
+* [src/character/Animate.client.luau](../src/character/Animate.client.luau) — Custom `StarterCharacterScripts.Animate` override (`[Exists]`)
+* [src/client/init.client.luau](../src/client/init.client.luau) — Client entry point (`[Exists]`)
+* [src/client/CrawlController.luau](../src/client/CrawlController.luau) — `LockFirstPerson`, directional crawl speeds, camera bob, and procedural R6 Motor6D crawl poses (`[Exists]`)
+* [src/client/HeadlampController.luau](../src/client/HeadlampController.luau) — Camera-tracked `SpotLight` rig, `[F]` toggle, and co-op teammate beams (`[Exists]`)
 
 ### Planned Module Topology (Target Architecture)
-*(Items marked `[Planned]` will be created incrementally across milestones `M1`–`M5`.)*
+*(Items marked `[Exists]` shipped in M1; `[Planned]` modules ship incrementally across `M2`–`M5`.)*
 
 ```text
 src/
 ├── shared/
 │   ├── MapLayout.luau        [Planned] 1:1 grid blueprint, tile connections, sectors, node slots
-│   ├── EntityProfiles.luau   [Planned] Modular EntityProfile definitions (v0.1 -> v0.2 roster)
-│   ├── GameConfig.luau       [Planned] Crawl speeds, headlamp ranges, panic rates, XP payout rules
-│   └── NetContracts.luau     [Planned] Canonical Remote names & payload type definitions
+│   ├── EntityProfiles.luau   [Exists]  Modular EntityProfile definitions (v0.1 JointCracker -> v0.2 roster)
+│   ├── GameConfig.luau       [Exists]  Crawl speeds, headlamp optics, vent dimensions
+│   └── NetContracts.luau     [Exists]  Canonical Remote names, Attributes & CollisionGroup constants
+├── character/
+│   └── Animate.client.luau   [Exists]  Overrides default R6 Animate; supports optional CustomCrawlAnimationId
 ├── server/
 │   ├── init.server.luau      [Exists]  Server entry point & round coordinator bootstrap
 │   ├── RoundService.luau     [Planned] Contract lifecycle, node randomization, Partial/Full Sign-Off XP
 │   ├── RepairService.luau    [Planned] ProximityPrompt validation, interruptible progress, spark noise events
 │   ├── EntityService.luau    [Planned] Tile-Graph A*/BFS patrol, sight/noise aggro, hunt/attack state machine
-│   └── PlayerStateService.luau [Planned] R6 crawl hitbox setup, headlamp server state, panic/alive tracking
+│   └── PlayerStateService.luau [Exists] R6 crawl hitbox setup, headlamp server state, CollisionGroups, vent spawn clamp
 └── client/
     ├── init.client.luau     [Exists]  Client entry point
-    ├── CrawlController.luau  [Planned] LockFirstPerson, disabled jump, reverse crawl speed, custom R6 Animate override
-    ├── HeadlampController.luau [Planned] Camera-tracked SpotLight attachment, toggle remote, proximity flicker
+    ├── CrawlController.luau  [Exists]  LockFirstPerson, disabled jump, reverse crawl speed, procedural R6 pose
+    ├── HeadlampController.luau [Exists] Camera-tracked SpotLight rig, [F] toggle remote, co-op teammate beams
     ├── PanicController.luau  [Planned] Stale air / panic breathing meter & audio feedback
     └── SafeRoomUI.luau       [Planned] Work Order clipboard & client visual sync with Studio blueprint/LEDs
 ```
@@ -66,18 +76,18 @@ flowchart TD
 > **Rule:** Every `RemoteEvent`, `RemoteFunction`, `CollectionService` tag, Instance `Attribute`, and `CollisionGroup` added to code or Roblox Studio **must** be registered here before merging.
 
 ### 3.1 Network Remotes (`ReplicatedStorage.Remotes`)
-*Currently implemented in `src/`: **None yet** (milestone targets listed below).*
+*Implemented in M1: `HeadlampToggled`; remaining items are milestone targets.*
 
 | Name | Kind | Direction | Payload | Server Validation | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `HeadlampToggled` | `RemoteEvent` | Client → Server → Clients | `{ isOn: boolean }` | Clamp toggle cooldown; reject if dead/in Safe Room if applicable; store authoritative state on server | `Planned (M1)` |
+| `HeadlampToggled` | `RemoteEvent` | Client → Server → Clients | `isOn: boolean` (Server broadcasts `player, isOn`) | `typeof(isOn) == "boolean"`, `0.25s` cooldown; sets `HeadlampOn` attribute | `Implemented (M1)` |
 | `NoiseEmitted` / Server Event | Server Internal / Optional | Client → Server | `{ noiseType: "Crawl" \| "Gasp" }` | Rate-limited; server validates player position & distance rather than trusting raw coordinates | `Planned (M4)` |
 | `WorkOrderSignOff` | `RemoteEvent` | Client → Server | `{ deductionId: string? }` | Verify player is alive inside Safe Room zone and contract is active | `Planned (M3)` |
 | `RoundStateSync` | `RemoteEvent` | Server → All Clients | `{ phase: string, activeSectors: {string}, repairedCount: number, requiredCount: number }` | Authoritative server broadcast | `Planned (M3)` |
 | `PanicStateSync` | `RemoteEvent` | Server ↔ Client | `{ panicRatio: number }` | Server clamps rate based on darkness/movement | `Planned (M4)` |
 
 ### 3.2 `CollectionService` Tags
-*Currently applied in Studio: **None yet**.*
+*Currently applied in Studio: **None yet** (`M1_TestVentBox` uses `VentWalls` `CollisionGroup` and `TestSpawn` name).*
 
 | Tag | Applied To | Owner | Purpose | Status |
 | :--- | :--- | :--- | :--- | :--- |
@@ -88,7 +98,7 @@ flowchart TD
 | `FloorGrate` | Grate peekhole assemblies | Studio (MCP) | Landmark lighting openings looking into silhouette rooms below | `Planned (M2)` |
 
 ### 3.3 Instance `Attribute`s
-*Currently applied in Studio: default Lighting migration attributes only.*
+*Implemented in M1: `HeadlampOn` on `Player` (plus default Lighting migration attributes).*
 
 | Attribute | Host Instance | Type | Values / Range | Consumer | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -97,31 +107,34 @@ flowchart TD
 | `IsActiveFault` | `RepairNode` Model | `boolean` | `true \| false` | `RepairService` & VFX | `Planned (M3)` |
 | `IsRepaired` | `RepairNode` Model | `boolean` | `true \| false` | `RepairService` & `RoundService` | `Planned (M3)` |
 | `RepairProgress` | `RepairNode` Model | `number` | `0.0` .. `1.0` | `RepairService` (interruptible checkpoints) | `Planned (M3)` |
-| `HeadlampOn` | `Player` | `boolean` | `true \| false` | Server `EntityService` | `Planned (M1)` |
+| `HeadlampOn` | `Player` | `boolean` | `true \| false` | `HeadlampController` & Server `EntityService` | `Implemented (M1)` |
 
 ### 3.4 `CollisionGroup` Matrix
-*Currently configured in Studio: Default only.*
+*Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`.*
 
 | Group Name | Collides With | Does Not Collide With | Purpose | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `Crawlers` | `Default`, `VentWalls` | `Crawlers` | Lets 1–4 players share cramped `4.5`-stud ducts without body-block griefing | `Planned (M1/M3)` |
+| `Crawlers` | `Default`, `VentWalls` | `Crawlers` | Lets 1–4 players share cramped `4.6`-stud ducts without body-block griefing | `Implemented (M1)` |
+| `VentWalls` | `Default`, `Crawlers`, `Entity` | — | Structural modular vent shells & floor grates | `Implemented (M1)` |
 | `Entity` | `VentWalls` (or graph-driven) | `Crawlers` (uses distance/LOS check) | Prevents entity physics snagging against players or tight corner seams | `Planned (M4)` |
 
 ---
 
 ## 4. Critical Roblox Engine Guardrails
 
-1. **R6 Crawl Hitbox & Camera Rig (`M1`):**
+1. **R6 Crawl Hitbox, Camera Offset & Enclosed Spawning (`M1`):**
    * Roblox animations are **purely visual** and do not shrink `BasePart` physics bounds.
-   * Lower `Humanoid.HipHeight` and adjust R6 torso/limb `CanCollide` / capsule bounds so the character cleanly clears `4.0–4.5` stud ceilings without snagging.
-   * Disable jumping (`Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)` and `JumpPower = 0`), set `CameraMode = Enum.CameraMode.LockFirstPerson`, lower `Humanoid.CameraOffset` to prone eye level, and replace/override the default R6 `Animate` script with custom crawl animations.
+   * Lower `Humanoid.HipHeight` (`-1.6`) and set R6 non-root limbs (`Arms`/`Legs`) `CanCollide = false` so the character clears `4.2`-stud ceilings cleanly without snagging.
+   * Roblox's built-in R6 first-person camera adds `+1.5Y` above `HumanoidRootPart`; set `GameConfig.Crawl.BaseCameraOffset = Vector3.new(0, -1.20, 0)` so eye level sits inside the prone `Head` (`Y ≈ 5.84` vs floor `4.0`).
+   * Disable jumping (`Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)` and `JumpPower = 0`), lock `CameraMode = Enum.CameraMode.LockFirstPerson`, and replace `StarterCharacterScripts.Animate` (`src/character/Animate.client.luau`) with procedural `Motor6D.Transform` updates in `RunService.Stepped`.
+   * **Enclosed Spawn Clamp:** `SpawnLocation` inside a `4.2`-stud duct pushes spawns onto the ceiling (`Y = 10.20`); `PlayerStateService` detects roof-pushed spawns and pivots characters inside `TestSpawn` (`Y = 5.40`).
 2. **Headlamp Rigging & Server Authority (`M1`):**
    * `SpotLight` instances do **not** render directly inside `Workspace.CurrentCamera`.
-   * Parent the `SpotLight` to an invisible, non-colliding `Part` or `Attachment` updated every `RunService.RenderStepped` (with slight damped angular lag for handheld/helmet weight).
+   * Parent `Beam` + `Fill` `SpotLight`s to an invisible, non-colliding `Workspace._LocalClientVFX.LocalHeadlampRig` updated every `RunService.RenderStepped` (exponentially damped angular lag), and render remote teammates' `TeammateHeadlamp` `SpotLight`s on their `Head`s.
    * Always notify the server via `HeadlampToggled` so `EntityService` evaluates beam exposure authoritatively on the server.
 3. **Pitch-Black Lighting Discipline (`M1`/`M2`):**
-   * Configure `Lighting` (`Future` / Unified Lighting) with near-zero `Ambient`, `OutdoorAmbient`, and `Brightness` inside interior duct geometry.
-   * Enforce `>= 0.5` stud wall/roof thickness on every modular prefab and overlapping corner seams to stop dynamic light bleed.
+   * Configure Unified Lighting (`Lighting.LightingStyle = Enum.LightingStyle.Realistic`, `PrioritizeLightingQuality = true`; legacy `Enum.LightingTechnology` is not present in this Studio build) with `Ambient = 0`, `OutdoorAmbient = 0`, `Brightness = 0`, `ClockTime = 0`, and `EnvironmentDiffuseScale = 0`.
+   * Enforce `>= 0.5` stud wall/roof thickness (`0.6` stud shells + `1.7` stud solid corners in `M1_TestVentBox`) to eliminate dynamic light bleed.
 4. **Tile-Graph AI Over `PathfindingService` (`M4`):**
    * `PathfindingService` navmeshes reliably break or stall inside narrow `4.5`-stud tunnels.
    * Build `EntityService` directly atop the `MapLayout.luau` adjacency graph using deterministic BFS/A* tile transitions and smooth `CFrame`/tween interpolation between node centers.
