@@ -123,7 +123,7 @@ flowchart TD
 | `IsCrawling` | `Player` | `boolean` | `true \| false` | `CrawlController` & `PlayerStateService` | `Implemented (M2)` |
 | `IsEliminated` | `Player` | `boolean` | `true \| false` | `EntityService`, `PlayerStateService` & `RoundService` | `Implemented (M5)` |
 | `PanicRatio` | `Player` | `number` | `0.0` .. `1.0` | `EntityService` & `PanicController` | `Implemented (M4)` |
-| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Investigate" \| "Chase"` | `EntityService` | `Implemented (M4)` |
+| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Stalk" \| "Lurk" \| "Retreat" \| "Chase"` | `EntityService` & `AudioController` | `Implemented (M4/M5)` |
 
 ### 3.4 `CollisionGroup` Matrix
 *Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`, `Entity`.*
