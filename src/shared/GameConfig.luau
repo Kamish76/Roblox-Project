@@ -1,7 +1,7 @@
 --!strict
 --[[
-	Shared configuration for M1/M2 crawl physics, Safe Room standing defaults,
-	headlamp optics, and modular vent kit standards.
+	Shared configuration for M1-M3 Safe Room, crawl physics, headlamp optics,
+	modular vent kit, interruptible repairs, and Work Order Sign-Off rewards.
 ]]
 
 local GameConfig = {
@@ -50,6 +50,18 @@ local GameConfig = {
 		InteriorHeight = 4.2,
 		WallThickness = 0.6,
 		FloorY = 4.0,
+	},
+
+	Repair = {
+		ActiveFaultCount = 5,
+		RepairDurationSeconds = 6.0,
+		PromptMaxDistance = 6.5,
+	},
+
+	WorkOrder = {
+		BaseXPPerRepair = 50,
+		FullClearBonusXP = 150,
+		RoundResetDelay = 4.0,
 	},
 }
 

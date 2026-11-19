@@ -101,12 +101,33 @@ function PlayerStateService.setStance(player: Player, inSafeRoom: boolean, targe
 	end
 end
 
+local function getVentEntryCFrame(): CFrame
+	local ventMap = workspace:FindFirstChild("VentMap")
+	local tiles = if ventMap then ventMap:FindFirstChild("VentTiles") else nil
+	local dropTile = if tiles then tiles:FindFirstChild("Tile_0_0") else nil
+	local floor = if dropTile then dropTile:FindFirstChild("Floor") else nil
+	if floor and floor:IsA("BasePart") then
+		return CFrame.new(floor.Position.X, floor.Position.Y + floor.Size.Y / 2 + 1.4, floor.Position.Z)
+	end
+	return GameConfig.Crawl.DropEntryCFrame
+end
+
+local function getSafeRoomReturnCFrame(): CFrame
+	local ventMap = workspace:FindFirstChild("VentMap")
+	local safeRoom = if ventMap then ventMap:FindFirstChild("SafeRoom") else nil
+	local safeSpawn = if safeRoom then safeRoom:FindFirstChild("SafeSpawn", true) else nil
+	if safeSpawn and safeSpawn:IsA("BasePart") then
+		return CFrame.new(safeSpawn.Position.X, safeSpawn.Position.Y + 2.9, safeSpawn.Position.Z)
+	end
+	return GameConfig.SafeRoom.ReturnCFrame
+end
+
 function PlayerStateService.transitionToVents(player: Player)
-	PlayerStateService.setStance(player, false, GameConfig.Crawl.DropEntryCFrame)
+	PlayerStateService.setStance(player, false, getVentEntryCFrame())
 end
 
 function PlayerStateService.transitionToSafeRoom(player: Player)
-	PlayerStateService.setStance(player, true, GameConfig.SafeRoom.ReturnCFrame)
+	PlayerStateService.setStance(player, true, getSafeRoomReturnCFrame())
 end
 
 local function onCharacterAdded(player: Player, character: Model)
@@ -142,8 +163,9 @@ local function onCharacterAdded(player: Player, character: Model)
 		task.defer(function()
 			if character.Parent and rootPart.Parent then
 				local y = rootPart.Position.Y
-				if y > GameConfig.SafeRoom.FloorY + GameConfig.SafeRoom.CeilingHeight + 0.5 or y < GameConfig.SafeRoom.FloorY - 0.5 then
-					PlayerStateService.setStance(player, true, GameConfig.SafeRoom.ReturnCFrame)
+				local baseFloorY = safeSpawn.Position.Y - 0.1
+				if y > baseFloorY + GameConfig.SafeRoom.CeilingHeight + 0.5 or y < baseFloorY - 0.5 then
+					PlayerStateService.setStance(player, true, getSafeRoomReturnCFrame())
 				end
 			end
 		end)

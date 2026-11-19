@@ -11,6 +11,8 @@ local NetContracts = {
 
 	Remotes = {
 		HeadlampToggled = "HeadlampToggled",
+		WorkOrderSignOff = "WorkOrderSignOff",
+		RoundStateSync = "RoundStateSync",
 	},
 
 	Tags = {
