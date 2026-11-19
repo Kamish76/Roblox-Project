@@ -35,6 +35,7 @@ local nodesById: { [string]: Model } = {}
 local activeHolds: { [Model]: ActiveHold } = {}
 local onNodeRepairedCallback: NodeRepairedCallback? = nil
 local onRepairNoiseCallback: RepairNoiseCallback? = nil
+local onRepairBeganCallback: ((player: Player) -> ())? = nil
 local initialized = false
 
 local function getPrompt(nodeModel: Model): ProximityPrompt?
@@ -236,6 +237,14 @@ local function setupNode(nodeModel: Model)
 				lastNoiseTime = 0,
 			}
 			updateNodeVisuals(nodeModel)
+
+			-- Give the player 0.8s to commit to repairing before potentially triggering a corner-peek
+			task.delay(0.8, function()
+				local hold = activeHolds[nodeModel]
+				if hold and hold.player == player and onRepairBeganCallback then
+					onRepairBeganCallback(player)
+				end
+			end)
 		end)
 
 		prompt.PromptButtonHoldEnded:Connect(function(player: Player)
@@ -316,6 +325,10 @@ end
 
 function RepairService.setNoiseCallback(callback: RepairNoiseCallback?)
 	onRepairNoiseCallback = callback
+end
+
+function RepairService.setRepairBeganCallback(callback: ((player: Player) -> ())?)
+	onRepairBeganCallback = callback
 end
 
 function RepairService.init(onRepaired: NodeRepairedCallback?)

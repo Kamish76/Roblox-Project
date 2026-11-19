@@ -37,6 +37,7 @@ local flinchTimer = 0
 local wasSpotted = false
 local chaseLostTimer = 0
 local retreatCooldownTimer = 0
+local lastRepairPeekTime = -100
 
 local lastDetectionTime = 0
 local lastPanicTime = 0
@@ -477,6 +478,109 @@ local function enterChase(player: Player)
 	flinchTimer = 0
 	wasSpotted = false
 	chaseLostTimer = 0
+end
+
+function EntityService.tryRepairCornerPeek(player: Player): boolean
+	-- Only teleport-peek when patrolling/stalking (never interrupt Chase, Retreat, or an active Lurk)
+	if aiState ~= "Patrol" and aiState ~= "Stalk" then
+		return false
+	end
+	if player:GetAttribute(NetContracts.Attributes.InSafeRoom) ~= false
+		or player:GetAttribute(NetContracts.Attributes.IsEliminated) == true
+	then
+		return false
+	end
+
+	local now = os.clock()
+	if now - lastRepairPeekTime < GameConfig.Entity.RepairPeekCooldown then
+		return false
+	end
+	if math.random() > GameConfig.Entity.RepairPeekChance then
+		return false
+	end
+
+	local char = player.Character
+	local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+	local head = if char then char:FindFirstChild("Head") :: BasePart? else nil
+	if not root or not head then
+		return false
+	end
+
+	local ventPlayers = getVentPlayers()
+	-- Never teleport visibly out of thin air while any player is looking at the entity
+	for _, vp in ipairs(ventPlayers) do
+		if isPlayerLookingAtEntity(vp) then
+			return false
+		end
+	end
+
+	local playerTileKey = EntityService.worldToTileKey(root.Position)
+	local frontCorners: { string } = {}
+	local anyLosCorners: { string } = {}
+
+	for _, tile in ipairs(MapLayout.Tiles) do
+		if tile.tileType == "Corner" or tile.tileType == "TJunction" or tile.tileType == "Cross" then
+			local k = MapLayout.key(tile.gx, tile.gz)
+			if k ~= MapLayout.DROP_TILE_KEY and k ~= playerTileKey then
+				local wp = EntityService.tileKeyToWorld(k)
+				local dist = (wp - head.Position).Magnitude
+				if dist >= GameConfig.Entity.RepairPeekMinDist and dist <= GameConfig.Entity.RepairPeekMaxDist then
+					if hasLineOfSightFrom(wp + Vector3.new(0, 0.28, 0), head) then
+						local safeFromTeammates = true
+						for _, vp in ipairs(ventPlayers) do
+							if vp.player ~= player then
+								local d = (wp - vp.root.Position).Magnitude
+								if d <= GameConfig.Entity.AmbushRadius then
+									safeFromTeammates = false
+									break
+								end
+								local toCorner = wp - vp.head.Position
+								if toCorner.Magnitude > 0.01
+									and vp.head.CFrame.LookVector:Dot(toCorner.Unit) >= 0.70
+									and hasLineOfSightFrom(wp + Vector3.new(0, 0.28, 0), vp.head)
+								then
+									safeFromTeammates = false
+									break
+								end
+							end
+						end
+
+						if safeFromTeammates then
+							local toCorner = wp - head.Position
+							if toCorner.Magnitude > 0.01 and head.CFrame.LookVector:Dot(toCorner.Unit) >= 0.15 then
+								table.insert(frontCorners, k)
+							else
+								table.insert(anyLosCorners, k)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	local chosenKey: string? = nil
+	if #frontCorners > 0 then
+		chosenKey = frontCorners[math.random(1, #frontCorners)]
+	elseif #anyLosCorners > 0 then
+		chosenKey = anyLosCorners[math.random(1, #anyLosCorners)]
+	end
+	if not chosenKey then
+		return false
+	end
+
+	lastRepairPeekTime = now
+	currentTileKey = chosenKey
+	pathQueue = {}
+	pathIndex = 1
+	targetPlayer = player
+	stareTimer = 0
+	flinchTimer = 0
+	wasSpotted = false
+	lurkTimer = GameConfig.Entity.LurkDuration
+	setState("Lurk")
+	positionLurkPeekRig(EntityService.tileKeyToWorld(chosenKey), root.Position, now)
+	return true
 end
 
 function EntityService.alertNoise(worldPos: Vector3, radius: number)
