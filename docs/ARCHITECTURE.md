@@ -20,7 +20,7 @@ All parent services use `"$ignoreUnknownInstances": true`:
 
 ### Current Repository Baseline (`src/`)
 * [src/shared/GameConfig.luau](../src/shared/GameConfig.luau) — Shared Safe Room & crawl physics, headlamp optics, vent dimensions, repair & Work Order configs (`[Exists]`)
-* [src/shared/MapLayout.luau](../src/shared/MapLayout.luau) — Single 1:1 grid blueprint (`33` tiles, `4` sectors `A`–`D` + `HUB`, `8` repair slots, `5` grates, BFS pathing & `validate()`) (`[Exists]`)
+* [src/shared/MapLayout.luau](../src/shared/MapLayout.luau) — Single 1:1 Office HVAC grid blueprint (`50` tiles, `4` office wings `A`–`D` + `HUB`, `8` repair slots, `12` see-through floor grates, BFS pathing & `validate()`) (`[Exists]`)
 * [src/shared/NetContracts.luau](../src/shared/NetContracts.luau) — Canonical remote, `CollectionService` tag, attribute, and `CollisionGroup` names (`[Exists]`)
 * [src/shared/EntityProfiles.luau](../src/shared/EntityProfiles.luau) — Modular `EntityProfile` registry (`JointCracker` active MVP, `ClickingCrawler` queued v0.2) (`[Exists]`)
 * [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point validating `MapLayout` and bootstrapping `PlayerStateService`, `RoundService` & `EntityService` (`[Exists]`)
