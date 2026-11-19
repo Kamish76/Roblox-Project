@@ -46,11 +46,11 @@ MapLayout.FLOOR_Y = GameConfig.VentKit.FloorY
 MapLayout.DROP_TILE_KEY = "0,0"
 
 MapLayout.Sectors = {
-	A = { id = "A", name = "BOILER", color = Color3.fromRGB(220, 58, 52) },
-	B = { id = "B", name = "COOLANT", color = Color3.fromRGB(62, 145, 245) },
-	C = { id = "C", name = "EXHAUST", color = Color3.fromRGB(240, 168, 48) },
-	D = { id = "D", name = "POWER", color = Color3.fromRGB(64, 200, 108) },
-	HUB = { id = "HUB", name = "SPINE", color = Color3.fromRGB(165, 175, 188) },
+	A = { id = "A", name = "CUBICLES", color = Color3.fromRGB(235, 165, 65) },
+	B = { id = "B", name = "SERVERS", color = Color3.fromRGB(58, 170, 245) },
+	C = { id = "C", name = "CONFERENCE", color = Color3.fromRGB(220, 65, 60) },
+	D = { id = "D", name = "BREAK ROOM", color = Color3.fromRGB(72, 205, 118) },
+	HUB = { id = "HUB", name = "HALLWAY", color = Color3.fromRGB(165, 175, 188) },
 } :: { [SectorId]: SectorDef }
 
 local DIR_OFFSETS: { [Direction]: { dx: number, dz: number, opposite: Direction } } = {
@@ -63,52 +63,71 @@ local DIR_OFFSETS: { [Direction]: { dx: number, dz: number, opposite: Direction 
 local ORDERED_DIRS: { Direction } = { "N", "S", "W", "E" }
 
 MapLayout.Tiles = {
-	-- Row Z = 0 (South Spine & DropShaft)
+	-- Row Z = 0 (South Entry Plenum & DropShaft above Lobby/Hallway)
 	{ gx = -2, gz = 0, sector = "A", tileType = "Corner", open = { N = true, E = true } },
 	{ gx = -1, gz = 0, sector = "A", tileType = "Straight", open = { W = true, E = true }, repairNode = "A2" },
 	{ gx = 0, gz = 0, sector = "HUB", tileType = "DropShaft", open = { N = true, W = true, E = true } },
 	{ gx = 1, gz = 0, sector = "B", tileType = "Straight", open = { W = true, E = true }, repairNode = "B2" },
 	{ gx = 2, gz = 0, sector = "B", tileType = "Corner", open = { N = true, W = true } },
 
-	-- Row Z = -1
-	{ gx = -2, gz = -1, sector = "A", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
-	{ gx = 0, gz = -1, sector = "HUB", tileType = "Straight", open = { N = true, S = true } },
-	{ gx = 2, gz = -1, sector = "B", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	-- Row Z = -1 (South Cubicle Loop & South Server Loop)
+	{ gx = -4, gz = -1, sector = "A", tileType = "Corner", open = { N = true, E = true } },
+	{ gx = -3, gz = -1, sector = "A", tileType = "Straight", open = { W = true, E = true }, hasGrate = true },
+	{ gx = -2, gz = -1, sector = "A", tileType = "TJunction", open = { N = true, S = true, W = true } },
+	{ gx = 0, gz = -1, sector = "HUB", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	{ gx = 2, gz = -1, sector = "B", tileType = "TJunction", open = { N = true, S = true, E = true } },
+	{ gx = 3, gz = -1, sector = "B", tileType = "Corner", open = { N = true, W = true } },
 
-	-- Row Z = -2 (South Hubs & Recessed Alcoves A1, B1)
+	-- Row Z = -2 (Cubicle Farm Bay, Hallway & Server Rack Aisle + Alcoves A1, B1)
+	{ gx = -4, gz = -2, sector = "A", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
 	{ gx = -3, gz = -2, sector = "A", tileType = "Alcove", open = { E = true }, repairNode = "A1", hasBulkheadLight = true },
-	{ gx = -2, gz = -2, sector = "A", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
-	{ gx = -1, gz = -2, sector = "A", tileType = "Straight", open = { W = true, E = true } },
-	{ gx = 0, gz = -2, sector = "HUB", tileType = "Cross", open = { N = true, S = true, W = true, E = true }, hasGrate = true },
-	{ gx = 1, gz = -2, sector = "B", tileType = "Straight", open = { W = true, E = true } },
-	{ gx = 2, gz = -2, sector = "B", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
-	{ gx = 3, gz = -2, sector = "B", tileType = "Alcove", open = { W = true }, repairNode = "B1", hasBulkheadLight = true },
+	{ gx = -2, gz = -2, sector = "A", tileType = "TJunction", open = { N = true, S = true, W = true } },
+	{ gx = 0, gz = -2, sector = "HUB", tileType = "Straight", open = { N = true, S = true } },
+	{ gx = 2, gz = -2, sector = "B", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	{ gx = 3, gz = -2, sector = "B", tileType = "TJunction", open = { N = true, S = true, E = true } },
+	{ gx = 4, gz = -2, sector = "B", tileType = "Alcove", open = { W = true }, repairNode = "B1", hasBulkheadLight = true },
 
-	-- Row Z = -3 (Mid Connector)
-	{ gx = -2, gz = -3, sector = "A", tileType = "Straight", open = { N = true, S = true } },
-	{ gx = 0, gz = -3, sector = "HUB", tileType = "Straight", open = { N = true, S = true } },
-	{ gx = 2, gz = -3, sector = "B", tileType = "Straight", open = { N = true, S = true } },
+	-- Row Z = -3 (Main Mid-Floor Cross Duct)
+	{ gx = -4, gz = -3, sector = "A", tileType = "Corner", open = { S = true, E = true } },
+	{ gx = -3, gz = -3, sector = "A", tileType = "Straight", open = { W = true, E = true }, hasGrate = true },
+	{ gx = -2, gz = -3, sector = "A", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
+	{ gx = -1, gz = -3, sector = "A", tileType = "Straight", open = { W = true, E = true } },
+	{ gx = 0, gz = -3, sector = "HUB", tileType = "Cross", open = { N = true, S = true, W = true, E = true }, hasGrate = true },
+	{ gx = 1, gz = -3, sector = "B", tileType = "Straight", open = { W = true, E = true } },
+	{ gx = 2, gz = -3, sector = "B", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
+	{ gx = 3, gz = -3, sector = "B", tileType = "Corner", open = { S = true, W = true } },
 
-	-- Row Z = -4 (North-Mid Cross & Peepholes)
-	{ gx = -2, gz = -4, sector = "C", tileType = "TJunction", open = { N = true, S = true, E = true }, hasGrate = true },
-	{ gx = -1, gz = -4, sector = "C", tileType = "Straight", open = { W = true, E = true } },
-	{ gx = 0, gz = -4, sector = "HUB", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
-	{ gx = 1, gz = -4, sector = "D", tileType = "Straight", open = { W = true, E = true } },
-	{ gx = 2, gz = -4, sector = "D", tileType = "TJunction", open = { N = true, S = true, W = true }, hasGrate = true },
+	-- Row Z = -4 (Mid-North Overlook Connectors)
+	{ gx = -2, gz = -4, sector = "A", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	{ gx = 0, gz = -4, sector = "HUB", tileType = "Straight", open = { N = true, S = true } },
+	{ gx = 2, gz = -4, sector = "B", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
 
-	-- Row Z = -5 (North Recessed Alcoves C1, D1)
-	{ gx = -3, gz = -5, sector = "C", tileType = "Alcove", open = { E = true }, repairNode = "C1", hasBulkheadLight = true },
-	{ gx = -2, gz = -5, sector = "C", tileType = "TJunction", open = { N = true, S = true, W = true } },
-	{ gx = 0, gz = -5, sector = "HUB", tileType = "Straight", open = { N = true, S = true } },
-	{ gx = 2, gz = -5, sector = "D", tileType = "TJunction", open = { N = true, S = true, E = true } },
-	{ gx = 3, gz = -5, sector = "D", tileType = "Alcove", open = { W = true }, repairNode = "D1", hasBulkheadLight = true },
+	-- Row Z = -5 (Conference Room & Break Room South Duct)
+	{ gx = -3, gz = -5, sector = "C", tileType = "Corner", open = { N = true, E = true } },
+	{ gx = -2, gz = -5, sector = "C", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
+	{ gx = -1, gz = -5, sector = "C", tileType = "Straight", open = { W = true, E = true } },
+	{ gx = 0, gz = -5, sector = "HUB", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
+	{ gx = 1, gz = -5, sector = "D", tileType = "Straight", open = { W = true, E = true } },
+	{ gx = 2, gz = -5, sector = "D", tileType = "Cross", open = { N = true, S = true, W = true, E = true } },
+	{ gx = 3, gz = -5, sector = "D", tileType = "Corner", open = { N = true, W = true } },
 
-	-- Row Z = -6 (Far North Loop)
-	{ gx = -2, gz = -6, sector = "C", tileType = "Corner", open = { S = true, E = true } },
-	{ gx = -1, gz = -6, sector = "C", tileType = "Straight", open = { W = true, E = true }, repairNode = "C2" },
-	{ gx = 0, gz = -6, sector = "HUB", tileType = "TJunction", open = { S = true, W = true, E = true } },
-	{ gx = 1, gz = -6, sector = "D", tileType = "Straight", open = { W = true, E = true }, repairNode = "D2" },
-	{ gx = 2, gz = -6, sector = "D", tileType = "Corner", open = { S = true, W = true } },
+	-- Row Z = -6 (Conference Table & Break Room Overlooks + Alcoves C1, D1)
+	{ gx = -4, gz = -6, sector = "C", tileType = "Alcove", open = { E = true }, repairNode = "C1", hasBulkheadLight = true },
+	{ gx = -3, gz = -6, sector = "C", tileType = "TJunction", open = { N = true, S = true, W = true }, hasGrate = true },
+	{ gx = -2, gz = -6, sector = "C", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	{ gx = 0, gz = -6, sector = "HUB", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	{ gx = 2, gz = -6, sector = "D", tileType = "Straight", open = { N = true, S = true }, hasGrate = true },
+	{ gx = 3, gz = -6, sector = "D", tileType = "TJunction", open = { N = true, S = true, E = true }, hasGrate = true },
+	{ gx = 4, gz = -6, sector = "D", tileType = "Alcove", open = { W = true }, repairNode = "D1", hasBulkheadLight = true },
+
+	-- Row Z = -7 (North Perimeter Duct)
+	{ gx = -3, gz = -7, sector = "C", tileType = "Corner", open = { S = true, E = true } },
+	{ gx = -2, gz = -7, sector = "C", tileType = "TJunction", open = { S = true, W = true, E = true } },
+	{ gx = -1, gz = -7, sector = "C", tileType = "Straight", open = { W = true, E = true }, repairNode = "C2" },
+	{ gx = 0, gz = -7, sector = "HUB", tileType = "TJunction", open = { S = true, W = true, E = true } },
+	{ gx = 1, gz = -7, sector = "D", tileType = "Straight", open = { W = true, E = true }, repairNode = "D2" },
+	{ gx = 2, gz = -7, sector = "D", tileType = "TJunction", open = { S = true, W = true, E = true } },
+	{ gx = 3, gz = -7, sector = "D", tileType = "Corner", open = { S = true, W = true } },
 } :: { TileDef }
 
 local tilesByKey: { [string]: TileDef } = {}

@@ -74,7 +74,7 @@ local GameConfig = {
 	},
 
 	Entity = {
-		SpawnTileKey = "0,-6",
+		SpawnTileKey = "0,-7",
 		KillRadius = 3.4,
 		AmbushRadius = 8.5,
 		CloseStareRange = 14.0,
