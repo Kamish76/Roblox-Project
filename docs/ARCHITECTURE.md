@@ -23,39 +23,41 @@ All parent services use `"$ignoreUnknownInstances": true`:
 * [src/shared/MapLayout.luau](../src/shared/MapLayout.luau) — Single 1:1 grid blueprint (`33` tiles, `4` sectors `A`–`D` + `HUB`, `8` repair slots, `5` grates, BFS pathing & `validate()`) (`[Exists]`)
 * [src/shared/NetContracts.luau](../src/shared/NetContracts.luau) — Canonical remote, `CollectionService` tag, attribute, and `CollisionGroup` names (`[Exists]`)
 * [src/shared/EntityProfiles.luau](../src/shared/EntityProfiles.luau) — Modular `EntityProfile` registry (`JointCracker` active MVP, `ClickingCrawler` queued v0.2) (`[Exists]`)
-* [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point validating `MapLayout` and bootstrapping `PlayerStateService` & `RoundService` (`[Exists]`)
+* [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point validating `MapLayout` and bootstrapping `PlayerStateService`, `RoundService` & `EntityService` (`[Exists]`)
 * [src/server/PlayerStateService.luau](../src/server/PlayerStateService.luau) — Standing/crawl stance switching, `DropShaft` prompts, `CollisionGroup`s, Safe Room spawn clamp, and `HeadlampToggled` authority (`[Exists]`)
-* [src/server/RepairService.luau](../src/server/RepairService.luau) — Interruptible `ProximityPrompt` repairs (`RepairProgress`), spark VFX, fault lights & status strips (`[Exists]`)
+* [src/server/RepairService.luau](../src/server/RepairService.luau) — Interruptible `ProximityPrompt` repairs (`RepairProgress`), spark VFX, fault lights, noise alerts & status strips (`[Exists]`)
 * [src/server/RoundService.luau](../src/server/RoundService.luau) — Balanced fault randomization, `SectorLED` updates, 3D `WorkOrderMonitor`, and Partial/Full Sign-Off XP (`[Exists]`)
+* [src/server/EntityService.luau](../src/server/EntityService.luau) — `JointCracker` procedural rig, BFS Tile-Graph AI (`Patrol`/`Investigate`/`Chase`), LOS/noise detection & server `PanicRatio` loop (`[Exists]`)
 * [src/character/Animate.client.luau](../src/character/Animate.client.luau) — Custom `StarterCharacterScripts.Animate` override (`[Exists]`)
 * [src/client/init.client.luau](../src/client/init.client.luau) — Client entry point (`[Exists]`)
 * [src/client/CrawlController.luau](../src/client/CrawlController.luau) — `LockFirstPerson`, stance-aware eye height & speeds, and procedural R6 Motor6D standing/crawl poses (`[Exists]`)
-* [src/client/HeadlampController.luau](../src/client/HeadlampController.luau) — Camera-tracked `SpotLight` rig, `[F]` toggle, and co-op teammate beams (`[Exists]`)
+* [src/client/HeadlampController.luau](../src/client/HeadlampController.luau) — Camera-tracked `SpotLight` rig, `[F]` toggle, proximity flicker, and co-op teammate beams (`[Exists]`)
+* [src/client/PanicController.luau](../src/client/PanicController.luau) — Stale Air / Panic HUD bar, pulsing edge vignette & rate-limited `Crawl` noise emitter (`[Exists]`)
 * [src/client/SafeRoomUI.luau](../src/client/SafeRoomUI.luau) — Live Work Order HUD, faulted sector display, and Sign-Off outcome banner (`[Exists]`)
 
 ### Planned Module Topology (Target Architecture)
-*(Items marked `[Exists]` shipped in M1–M3; `[Planned]` modules ship incrementally across `M4`–`M5`.)*
+*(Items marked `[Exists]` shipped in M1–M4; `M5` focuses on spatial audio, death/spectate polish & 4-player playtest.)*
 
 ```text
 src/
 ├── shared/
 │   ├── MapLayout.luau        [Exists]  1:1 grid blueprint, tile connections, sectors, node slots, BFS & validate()
 │   ├── EntityProfiles.luau   [Exists]  Modular EntityProfile definitions (v0.1 JointCracker -> v0.2 roster)
-│   ├── GameConfig.luau       [Exists]  Safe Room & crawl speeds, headlamp, vent, repair & Work Order configs
+│   ├── GameConfig.luau       [Exists]  Safe Room, crawl, headlamp, vent, repair, Work Order, Panic & Entity configs
 │   └── NetContracts.luau     [Exists]  Canonical Remote names, Tags, Attributes & CollisionGroup constants
 ├── character/
 │   └── Animate.client.luau   [Exists]  Overrides default R6 Animate; supports optional CustomCrawlAnimationId
 ├── server/
 │   ├── init.server.luau      [Exists]  Server entry point, MapLayout.validate() & service bootstrap
 │   ├── RoundService.luau     [Exists]  Contract lifecycle, balanced node randomization, SectorLEDs & Sign-Off XP
-│   ├── RepairService.luau    [Exists]  Interruptible ProximityPrompt repairs, saved RepairProgress & spark VFX
-│   ├── EntityService.luau    [Planned] Tile-Graph A*/BFS patrol, sight/noise aggro, hunt/attack state machine
+│   ├── RepairService.luau    [Exists]  Interruptible ProximityPrompt repairs, saved RepairProgress & spark noise
+│   ├── EntityService.luau    [Exists]  Tile-Graph BFS patrol/investigate/chase, sight/noise aggro & PanicRatio loop
 │   └── PlayerStateService.luau [Exists] Stance switching, DropShaft prompts, CollisionGroups & headlamp server state
 └── client/
     ├── init.client.luau     [Exists]  Client entry point
     ├── CrawlController.luau  [Exists]  LockFirstPerson, disabled jump, standing/crawl speeds & procedural R6 poses
-    ├── HeadlampController.luau [Exists] Camera-tracked SpotLight rig, [F] toggle remote, co-op teammate beams
-    ├── PanicController.luau  [Planned] Stale air / panic breathing meter & audio feedback
+    ├── HeadlampController.luau [Exists] Camera-tracked SpotLight rig, [F] toggle, proximity flicker & teammate beams
+    ├── PanicController.luau  [Exists]  Stale Air / Panic HUD, pulsing vignette & Crawl noise emitter
     └── SafeRoomUI.luau       [Exists]  Work Order HUD & extraction outcome banner synced via RoundStateSync
 ```
 
@@ -80,15 +82,15 @@ flowchart TD
 > **Rule:** Every `RemoteEvent`, `RemoteFunction`, `CollectionService` tag, Instance `Attribute`, and `CollisionGroup` added to code or Roblox Studio **must** be registered here before merging.
 
 ### 3.1 Network Remotes (`ReplicatedStorage.Remotes`)
-*Implemented across M1–M3: `HeadlampToggled`, `WorkOrderSignOff`, `RoundStateSync`.*
+*Implemented across M1–M4: `HeadlampToggled`, `WorkOrderSignOff`, `RoundStateSync`, `NoiseEmitted`, `PanicStateSync`.*
 
 | Name | Kind | Direction | Payload | Server Validation | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `HeadlampToggled` | `RemoteEvent` | Client → Server → Clients | `isOn: boolean` (Server broadcasts `player, isOn`) | `typeof(isOn) == "boolean"`, `0.25s` cooldown; sets `HeadlampOn` attribute | `Implemented (M1)` |
-| `NoiseEmitted` / Server Event | Server Internal / Optional | Client → Server | `{ noiseType: "Crawl" \| "Gasp" }` | Rate-limited; server validates player position & distance rather than trusting raw coordinates | `Planned (M4)` |
+| `NoiseEmitted` | `RemoteEvent` | Client → Server | `{ noiseType: "Crawl" \| "Gasp" }` | `0.8s` rate limit; server reads player `HumanoidRootPart.Position` | `Implemented (M4)` |
 | `WorkOrderSignOff` | `RemoteEvent` | Client → Server | `()` (v0.2 adds `{ deductionId: string? }`) | Verify `phase == "Active"`, `InSafeRoom == true`, and player alive | `Implemented (M3)` |
 | `RoundStateSync` | `RemoteEvent` | Server → All Clients | `{ phase, activeSectors, repairedCount, requiredCount, totalXP, lastOutcome }` | Authoritative server broadcast | `Implemented (M3)` |
-| `PanicStateSync` | `RemoteEvent` | Server ↔ Client | `{ panicRatio: number }` | Server clamps rate based on darkness/movement | `Planned (M4)` |
+| `PanicStateSync` | `RemoteEvent` | Server → Client | `{ panicRatio: number }` | Authoritative server `EntityService` panic loop | `Implemented (M4)` |
 
 ### 3.2 `CollectionService` Tags
 *Implemented in M2 across `Workspace.VentMap`: `VentTile` (33), `RepairNode` (8), `SectorLED` (4), `SafeRoomZone` (1), `FloorGrate` (5).*
@@ -114,17 +116,19 @@ flowchart TD
 | `IsRepaired` | `RepairNode` Model | `boolean` | `true \| false` | `RepairService` & `RoundService` | `Implemented (M3)` |
 | `RepairProgress` | `RepairNode` Model | `number` | `0.0` .. `1.0` | `RepairService` (interruptible checkpoints) | `Implemented (M3)` |
 | `HeadlampOn` | `Player` | `boolean` | `true \| false` | `HeadlampController` & Server `EntityService` | `Implemented (M1)` |
-| `InSafeRoom` | `Player` | `boolean` | `true \| false` | `PlayerStateService` & `M3` Work Order Sign-Off | `Implemented (M2)` |
+| `InSafeRoom` | `Player` | `boolean` | `true \| false` | `PlayerStateService`, `EntityService` & `WorkOrderSignOff` | `Implemented (M2)` |
 | `IsCrawling` | `Player` | `boolean` | `true \| false` | `CrawlController` & `PlayerStateService` | `Implemented (M2)` |
+| `PanicRatio` | `Player` | `number` | `0.0` .. `1.0` | `EntityService` & `PanicController` | `Implemented (M4)` |
+| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Investigate" \| "Chase"` | `EntityService` | `Implemented (M4)` |
 
 ### 3.4 `CollisionGroup` Matrix
-*Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`.*
+*Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`, `Entity`.*
 
 | Group Name | Collides With | Does Not Collide With | Purpose | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `Crawlers` | `Default`, `VentWalls` | `Crawlers` | Lets 1–4 players share cramped `4.6`-stud ducts without body-block griefing | `Implemented (M1)` |
+| `Crawlers` | `Default`, `VentWalls` | `Crawlers`, `Entity` | Lets 1–4 players share cramped `4.6`-stud ducts without body-block griefing | `Implemented (M1)` |
 | `VentWalls` | `Default`, `Crawlers`, `Entity` | — | Structural modular vent shells & floor grates | `Implemented (M1)` |
-| `Entity` | `VentWalls` (or graph-driven) | `Crawlers` (uses distance/LOS check) | Prevents entity physics snagging against players or tight corner seams | `Planned (M4)` |
+| `Entity` | `VentWalls` | `Crawlers`, `Entity` | Prevents entity physics snagging against players or tight corner seams | `Implemented (M4)` |
 
 ---
 

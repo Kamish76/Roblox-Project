@@ -1,6 +1,6 @@
 # Project Roadmap & Milestones
 
-> **Current Phase:** `M4 — Tile-Graph Entity AI, Detection & Panic Breathing` (`M3` Complete!)  
+> **Current Phase:** `M5 — Audio Horror Polish & Vertical Slice Playtest` (`M4` Complete!)  
 > **Active Target:** Ship a playable, atmospheric **MVP v0.1** vertical slice, then expand into **v0.2 *Demonology*-style Deduction & Multi-Entity Roster**.
 
 ---
@@ -38,13 +38,13 @@
 - [x] Verify repair sync, `InSafeRoom` validation, interruptible hold, and Sign-Off extraction in live Studio Playtest
 - **Verification Gate:** Verified live in Studio Playtest (`ActiveFaults = 5`, interruptible `1.8s` hold saved `MidProgress = 0.30` / `Resume Repair`, `WorkOrderSignOff` rejected inside vents, resumed to `1 / 5 REPAIRED`, Partial Sign-Off `+50 XP`, auto-reset to `0 / 5 REPAIRED | XP: 50`, `0` script errors).
 
-### M4 — Tile-Graph Entity AI, Detection & Panic Breathing
+### M4 — Tile-Graph Entity AI, Detection & Panic Breathing *(Complete)*
 **Goal:** Introduce lethal tension, stealth counterplay, and anti-camping pressure.
-- [ ] Implement `EntityProfiles.luau` and `EntityService.luau` (Tile Adjacency Graph BFS/A* patrol + hunt routing)
-- [ ] Wire two-layer detection: passive dark vision vs. long-range `HeadlampOn` beam sight, plus crawl/repair audio investigation
-- [ ] Implement `PanicController.luau` (Stale Air / Panic Breathing meter rising in stillness/darkness, triggering audible gasps)
-- [ ] Add diegetic headlamp flicker when entity enters `proximityFlickerRange`
-- **Verification Gate:** Confirm entity patrols smoothly around tight corners, loses aggro when light is cut and player ducks into an `Alcove`/loop, and punishes reckless light/noise.
+- [x] Implement `EntityService.luau` (procedural `JointCracker` rig, offset-safe `MapLayout` BFS `Patrol` / `Investigate` / `Chase` state machine, `KillRadius` elimination)
+- [x] Wire two-layer detection: raycast LOS (`11` dark vs `42` `HeadlampOn` sight), plus `NoiseEmitted` (`Crawl` / `Gasp`) and `RepairService` spark noise alerts
+- [x] Implement Stale Air / Panic Breathing (`PanicRatio` server loop + `PanicController.luau` HUD bar & pulsing vignette)
+- [x] Add diegetic headlamp flicker in `HeadlampController.luau` when entity enters `proximityFlickerRange` (`25` studs)
+- **Verification Gate:** Verified live in Studio Playtest (`Patrol` `5.92` studs/s, `PanicDark = 0.117 -> PanicLight = 0.032`, `BeamBrightness = 0.34` flicker within `25` studs, `KillRadius` elimination & Safe Room respawn, `SightState = Chase -> LostLOSState = Investigate`, `0` script errors).
 
 ### M5 — Audio Horror Polish & Vertical Slice Playtest
 **Goal:** Turn the mechanical loop into oppressive horror.
