@@ -1,17 +1,17 @@
 # Project Roadmap & Milestones
 
-> **Current Phase:** `M0 — Foundation & Living Documentation Baseline`  
+> **Current Phase:** `M1 — First-Person R6 Crawler & Headlamp Test Box`  
 > **Active Target:** Ship a playable, atmospheric **MVP v0.1** vertical slice, then expand into **v0.2 *Demonology*-style Deduction & Multi-Entity Roster**.
 
 ---
 
 ## MVP v0.1 Milestones
 
-### M0 — Foundation, Governance & Living Docs *(In Progress)*
+### M0 — Foundation, Governance & Living Docs *(Complete)*
 - [x] Initialize local Git, Triad ICM scaffold (`.icm/`), Graphify baseline, and Obsidian `Project-Context.md`
 - [x] Verify `Roblox_Studio` MCP live connection (`Kamish_76's Place: 11192026_1`) & Rojo `7.7.1` toolchain
 - [x] Establish Living Documentation Suite (`docs/README.md`, `GDD.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `ROADMAP.md`)
-- [ ] Lock `OD-01` (MVP Entity #1 archetype) & `OD-02` (v0.1 deduction scope) in [GDD.md](./GDD.md)
+- [x] Lock `OD-01` (MVP Entity #1 archetype) & `OD-02` (v0.1 deduction scope) in [GDD.md](./GDD.md)
 
 ### M1 — First-Person R6 Crawler & Headlamp Test Box
 **Goal:** Nail the physical feel of cramped first-person vent crawling before building a full maze.
@@ -69,7 +69,7 @@
 
 | ID | Decision Needed | Owner | Target Gate |
 | :--- | :--- | :--- | :--- |
-| `OD-01` | Pick **MVP Entity #1** archetype (*Joint-Cracker*, *Clicking Crawler*, *Mimic*, *Ceiling-Clinger*, or *Inverted Scuttler*) | User | Before `M4` (ideal: now) |
-| `OD-02` | Confirm **v0.1 Deduction Scope** (1 entity in v0.1 -> deduction in v0.2, vs. 2-entity deduction in v0.1) | User | Before `M3`/`M4` |
+| `OD-01` | **Locked:** **The Joint-Cracker** chosen as MVP Entity #1 (`ADR-006`) | User | **Done** |
+| `OD-02` | **Locked:** **1 entity in v0.1** (`Joint-Cracker`), *Demonology* multi-entity deduction in **v0.2** (`ClickingCrawler` queued as #2, `ADR-006`) | User | **Done** |
 | `OD-03` | Finalize Grid Footprint (`8×8` vs. `10×10` studs) after R6 crawl test | Engineering | During `M1` |
 | `OD-04` | Tune active vs. total repair node count (`e.g. 5/9`) | Design | During `M3` |

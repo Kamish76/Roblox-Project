@@ -51,3 +51,17 @@ Record every significant technical, structural, or gameplay tradeoff here. Once 
 - **Context:** A pure binary "fix all or lose everything" loop causes frustrating wipes in tight co-op vents, whereas instant victory on the final node removes extraction tension.
 - **Decision:** Adopt a *Demonology* / *Phasmophobia* extraction contract: players must crawl back out to the Safe Room and **Lock / Sign Off the Work Order**. Incomplete jobs grant partial XP per completed fault; 100% completion awards full contract payout + completion bonus.
 - **Consequences:** Supports emergent Safe Room Operator ("man in the chair") play, tense extraction retreats after deep repairs, and tactical risk-reward retreats when teammates go down.
+
+## ADR-006: Select The Joint-Cracker as MVP v0.1 Flagship Entity & Defer Multi-Entity Deduction to v0.2
+- **Status:** Accepted
+- **Date:** 2026-11-19
+- **Context:** Locking `OD-01` and `OD-02` allows `M1`–`M5` to validate crawl feel, lighting tension, co-op coordination, and the Work Order loop without delaying the vertical slice on multi-monster balancing.
+- **Decision:** Lock **The Joint-Cracker** as MVP v0.1's flagship entity inside modular `src/shared/EntityProfiles.luau`, and defer *Demonology*-style multi-entity deduction to **v0.2** with **The Clicking Crawler** queued as Entity #2.
+- **Consequences:** All v0.1 gameplay and AI work centers on crisp light-reactive + sound-investigating horror (`JointCracker`) while preserving full `EntityProfile` extensibility for v0.2.
+
+## ADR-007: Procedural R6 Motor6D Crawl Animator in `StarterCharacterScripts.Animate` (With Optional Custom `AnimationId` Override)
+- **Status:** Accepted
+- **Date:** 2026-11-19
+- **Context:** Uploaded Roblox `Animation` assets are tied to creator/group permissions and fail to play across different Studio/Team Create environments unless re-uploaded under the active place owner.
+- **Decision:** Replace the default R6 `Animate` script via `StarterCharacterScripts.Animate` (`src/character/Animate.client.luau`) and drive all players' R6 crawl poses procedurally via conjugated `Motor6D.Transform` updates inside `CrawlController.luau`, while exposing `GameConfig.Crawl.CustomCrawlAnimationId` as an optional drop-in override for custom keyframed animations.
+- **Consequences:** Every player and co-op teammate renders a responsive forward/reverse prone crawl immediately with zero external asset dependency, while keeping full support for bespoke uploaded animations later.

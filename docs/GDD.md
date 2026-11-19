@@ -127,7 +127,7 @@ export type EntityProfile = {
 
 | ID | Question | Options Under Consideration | Status |
 | :--- | :--- | :--- | :--- |
-| `OD-01` | **MVP Entity #1 Selection** | *Joint-Cracker* vs. *Clicking Crawler* vs. *Wall-Squatter/Mimic* vs. *Ceiling-Clinger* vs. *Inverted Scuttler* | **Open** — awaiting user pick |
-| `OD-02` | **v0.1 Deduction Scope** | Ship v0.1 with **1 entity** (validate crawl, co-op, Work Order first; add deduction in v0.2) vs. lightweight **2-entity deduction** in v0.1 | **Open** — awaiting user pick |
+| `OD-01` | **MVP Entity #1 Selection** | **The Joint-Cracker** (*"The Crawlspace"* / *The Rake* archetype — faint yellow eye-shine, wet joint-cracking & whispers, light-reactive headlamp aggro + noise investigation) | **Locked** (`ADR-006`) |
+| `OD-02` | **v0.1 Deduction Scope** | **MVP v0.1 ships with 1 Entity (`Joint-Cracker`)** driven by modular `EntityProfile` (`src/shared/EntityProfiles.luau`); **v0.2** unlocks *Demonology*-style multi-entity deduction starting with **The Clicking Crawler** as Entity #2 | **Locked** (`ADR-006`) |
 | `OD-03` | **Grid Cell Footprint** | `8×8` studs vs. `10×10` studs (tested during M1/M2 R6 crawl box verification) | **Open** — validate in M1 |
 | `OD-04` | **Active Repairs Per Contract** | Fixed count (e.g., `5` active out of `8–10` total nodes) vs. scaling with squad size (`1–4` players) | **Open** — tune in M3 |
