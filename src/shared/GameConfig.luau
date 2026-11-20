@@ -5,6 +5,17 @@
 ]]
 
 local GameConfig = {
+	Lobby = {
+		MaxPartySize = 4,
+		MinPartySize = 1,
+		LaunchCountdownSeconds = 3,
+		CodeLength = 4,
+		-- StudioStartMode controls initial mode in Roblox Studio ("Lobby" to test full party flow, "Match" to jump straight in).
+		StudioStartMode = "Lobby",
+		ReturnLobbyKey = Enum.KeyCode.L,
+		ActionCooldown = 0.25,
+	},
+
 	SafeRoom = {
 		WalkSpeed = 10,
 		StandingHipHeight = 0,

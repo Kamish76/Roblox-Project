@@ -27,6 +27,7 @@ local lastToggleTime = 0
 local headlampPart: Part
 local primaryBeam: SpotLight
 local fillBeam: SpotLight
+local hudGui: ScreenGui? = nil
 local statusLabel: TextLabel?
 local remoteLights: { [Player]: SpotLight } = {}
 
@@ -61,7 +62,9 @@ local function createLocalHud()
 	gui.Name = "M1Hud"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
+	gui.Enabled = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) ~= "Lobby"
 	gui.Parent = playerGui
+	hudGui = gui
 
 	local label = Instance.new("TextLabel")
 	label.Name = "HeadlampStatus"
@@ -226,8 +229,17 @@ function HeadlampController.init()
 		end
 	end)
 
+	ReplicatedStorage:GetAttributeChangedSignal(NetContracts.Attributes.ServerMode):Connect(function()
+		if hudGui then
+			hudGui.Enabled = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) ~= "Lobby"
+		end
+	end)
+
 	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
 		if gameProcessed then
+			return
+		end
+		if ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) == "Lobby" then
 			return
 		end
 		if input.KeyCode ~= GameConfig.Headlamp.ToggleKey then

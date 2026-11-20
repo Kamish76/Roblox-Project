@@ -50,7 +50,8 @@
 **Goal:** Turn the mechanical loop into oppressive horror.
 - [x] Add 3-layer spatial audio: entity tells (`EntityScrape`), active node electrical hum (`FaultHum`), and ambient building creaks (`AmbientCreak` + `HeadlampClick`/`PanicGasp`/`ScareSting`, configured via `GameConfig.Audio` IDs)
 - [x] Add entity visual model/rig and jump-scare/elimination handling (`ScareFlash`, Safe Room lockdown banner, `[Tab]` squad spectate, and `SQUAD WIPED (+0 XP)` reset)
-- [ ] Run full 2–4 player Studio Team Test session covering Safe Room Operator + Crawlers, partial escape after teammate loss, and full clear *(1-player Studio MCP Playtest verified audio emitters, elimination, lockdown, and squad-wipe reset; 2–4 player Team Test pending manual multi-client run)*
+- [x] Implement Multiplayer Party Lobby & Independent Reserved Match Servers (`LobbyService.luau`, `LobbyUI.luau`, `Public`/`Friends`/`Private` 4-char Join Codes, `SocialService` friend invites, `TeleportService:ReserveServer(game.PlaceId)` isolation, Safe Room Return to Lobby, and Studio in-place fallback)
+- [ ] Run full 2–4 player live friends / Studio Team Test session covering Safe Room Operator + Crawlers, partial escape after teammate loss, and full clear *(1-player Studio MCP Playtest verified audio emitters, elimination, lockdown, squad-wipe reset, and Lobby -> Match -> Lobby flow; multi-friend live test ready after Publish)*
 - **Verification Gate:** Zero script errors in `get_console_output`, clean `rojo build`, and Playtest sign-off logged in `.icm/03_verify/`.
 
 ---

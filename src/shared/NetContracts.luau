@@ -16,6 +16,9 @@ local NetContracts = {
 		NoiseEmitted = "NoiseEmitted",
 		PanicStateSync = "PanicStateSync",
 		PlayerEliminated = "PlayerEliminated",
+		LobbyAction = "LobbyAction",
+		LobbyStateSync = "LobbyStateSync",
+		ReturnToLobby = "ReturnToLobby",
 	},
 
 	Tags = {
@@ -34,6 +37,7 @@ local NetContracts = {
 		StaminaRatio = "StaminaRatio",
 		PanicRatio = "PanicRatio",
 		IsEliminated = "IsEliminated",
+		ServerMode = "ServerMode",
 	},
 
 	CollisionGroups = {

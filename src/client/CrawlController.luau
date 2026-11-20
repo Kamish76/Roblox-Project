@@ -287,15 +287,27 @@ local function updateCharacterPose(player: Player, dt: number)
 	end
 end
 
+local function syncCameraMode()
+	local isLobby = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) == "Lobby"
+	if isLobby then
+		localPlayer.CameraMode = Enum.CameraMode.Classic
+		localPlayer.CameraMinZoomDistance = 4
+		localPlayer.CameraMaxZoomDistance = 10
+	else
+		localPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+		localPlayer.CameraMinZoomDistance = 0.5
+		localPlayer.CameraMaxZoomDistance = 0.5
+	end
+end
+
 function CrawlController.init()
 	if initialized then
 		return
 	end
 	initialized = true
 
-	localPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
-	localPlayer.CameraMinZoomDistance = 0.5
-	localPlayer.CameraMaxZoomDistance = 0.5
+	syncCameraMode()
+	ReplicatedStorage:GetAttributeChangedSignal(NetContracts.Attributes.ServerMode):Connect(syncCameraMode)
 
 	localPlayer.CharacterAdded:Connect(enforceLocalHumanoid)
 	if localPlayer.Character then
