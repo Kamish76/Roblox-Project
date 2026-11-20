@@ -1,7 +1,7 @@
 --!strict
 --[[
-	Shared configuration for M1-M3 Safe Room, crawl physics, headlamp optics,
-	modular vent kit, interruptible repairs, and Work Order Sign-Off rewards.
+	Shared configuration for Safe Room, crawl & fast-crawl physics, headlamp optics,
+	modular vent kit, interruptible repairs, Work Order rewards, Entity AI, and Audio.
 ]]
 
 local GameConfig = {
@@ -18,6 +18,17 @@ local GameConfig = {
 		ForwardWalkSpeed = 5.5,
 		StrafeWalkSpeed = 4.2,
 		ReverseWalkSpeed = 3.4,
+		FastCrawlKey = Enum.KeyCode.LeftShift,
+		FastForwardWalkSpeed = 8.4,
+		FastStrafeWalkSpeed = 6.0,
+		FastReverseWalkSpeed = 4.4,
+		StaminaDrainRate = 0.24,
+		StaminaRegenRate = 0.18,
+		StaminaRegenDelay = 1.2,
+		StaminaResumeThreshold = 0.20,
+		FastBobMultiplier = 1.55,
+		BaseFov = 70,
+		FastFovBoost = 4.5,
 		SpeedLerpRate = 12,
 		HipHeight = -1.6,
 		-- Offsets Roblox's built-in R6 first-person +1.5Y eye height down to prone Head level (~1.7 studs above duct floor).
@@ -74,12 +85,12 @@ local GameConfig = {
 	},
 
 	Entity = {
-		SpawnTileKey = "0,-7",
+		SpawnTileKey = "0,-10",
 		KillRadius = 3.4,
 		AmbushRadius = 8.5,
 		CloseStareRange = 14.0,
-		StalkAcquireRange = 36.0,
-		StalkSpeed = 4.6,
+		StalkAcquireRange = 38.0,
+		StalkSpeed = 4.8,
 		RetreatSpeed = 24.0,
 		RetreatCooldown = 3.5,
 		StareDotThreshold = 0.62,
@@ -91,24 +102,34 @@ local GameConfig = {
 		RepairPeekChance = 0.55,
 		RepairPeekCooldown = 14.0,
 		RepairPeekMinDist = 11.0,
-		RepairPeekMaxDist = 34.0,
-		PatrolSpeedMultiplier = 0.75,
+		RepairPeekMaxDist = 36.0,
+		PatrolSpeedMultiplier = 0.82,
 		ChaseSpeedMultiplier = 1.15,
-		CrawlNoiseRadius = 20.0,
-		RepairNoiseRadius = 30.0,
-		GaspNoiseRadius = 34.0,
+		CrawlNoiseRadius = 18.0,
+		FastCrawlNoiseRadius = 42.0,
+		FastCrawlChaseRadius = 22.0,
+		RepairNoiseRadius = 32.0,
+		GaspNoiseRadius = 36.0,
+		-- Multiplayer intensity scaling when >= 2 active crawlers are inside the vents
+		MultiplayerStalkSpeedBonus = 1.2,
+		MultiplayerRetreatCooldownScale = 0.70,
+		MultiplayerAcquireRangeBonus = 10.0,
 	},
 
 	Audio = {
-		-- Populate with verified rbxassetid:// audio IDs when adding final studio sound assets.
-		EntityScrapeId = "",
-		FaultHumId = "",
-		AmbientCreakId = "",
-		HeadlampClickId = "",
-		PanicGaspId = "",
-		ScareStingId = "",
-		EntityMaxDistance = 42,
-		FaultHumMaxDistance = 14,
+		-- Verified free Creator Store (ProSoundEffects / APMOfficial) IDs;
+		-- swap with custom CC0 FreeSound uploads sourced via sandraschi/sfx-mcp as desired.
+		EntityScrapeId = "rbxassetid://9125666321",
+		FaultHumId = "rbxassetid://110483919798635",
+		AmbientCreakId = "rbxassetid://9125666441",
+		HeadlampClickId = "rbxassetid://9114480271",
+		PanicGaspId = "rbxassetid://94952921557556",
+		ScareStingId = "rbxassetid://1841353939",
+		CrawlScrapeId = "rbxassetid://9113757109",
+		FastCrawlScrapeId = "rbxassetid://9114801898",
+		VentAmbienceId = "rbxassetid://9112839813",
+		EntityMaxDistance = 48,
+		FaultHumMaxDistance = 16,
 		CreakIntervalMin = 12,
 		CreakIntervalMax = 24,
 	},

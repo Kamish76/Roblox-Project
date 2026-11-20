@@ -1,14 +1,16 @@
 --!strict
 --[[
 	Client crawl & Safe Room stance controller:
-	- Locks camera to First Person with stance-aware eye-height offset & bob.
-	- Disables jumping; switches WalkSpeed between Safe Room standing and directional crawl.
-	- Applies procedural R6 Motor6D standing/walking or prone crawl poses across all visible players.
+	- Locks camera to First Person with stance-aware eye-height offset, bob & fast-crawl FOV surge.
+	- Disables jumping; switches WalkSpeed between Safe Room standing, directional crawl, and LeftShift fast-crawl.
+	- Manages stamina drain/regen/exhaustion lockout for fast-crawling.
+	- Applies procedural R6 Motor6D standing/walking or prone crawl/scramble poses across all visible players.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
@@ -20,8 +22,21 @@ local localPlayer = Players.LocalPlayer
 local initialized = false
 local bobPhase = 0
 
+local staminaRatio = 1.0
+local exhausted = false
+local lastFastCrawlTime = 0
+local isFastCrawlingNow = false
+
 local restC0Cache = setmetatable({}, { __mode = "k" }) :: { [Motor6D]: CFrame }
 local playerPhases = setmetatable({}, { __mode = "k" }) :: { [Player]: number }
+
+function CrawlController.isFastCrawling(): boolean
+	return isFastCrawlingNow
+end
+
+function CrawlController.getStaminaRatio(): number
+	return staminaRatio
+end
 
 local function getRestC0Rotation(motor: Motor6D): CFrame
 	local cached = restC0Cache[motor]
@@ -85,9 +100,50 @@ local function updateLocalMovementAndCamera(dt: number)
 		applyStancePhysics(humanoid, crawling)
 	end
 
+	local now = os.clock()
+	local moveDir = humanoid.MoveDirection
+	local flatMove = Vector3.new(moveDir.X, 0, moveDir.Z)
+	local isTryingToMove = flatMove.Magnitude > 0.05
+	local wantsFastCrawl = crawling
+		and isTryingToMove
+		and UserInputService:IsKeyDown(GameConfig.Crawl.FastCrawlKey)
+		and not UserInputService:GetFocusedTextBox()
+
+	if not crawling then
+		isFastCrawlingNow = false
+		exhausted = false
+		staminaRatio = math.min(1.0, staminaRatio + GameConfig.Crawl.StaminaRegenRate * 2.0 * dt)
+	elseif wantsFastCrawl and not exhausted and staminaRatio > 0 then
+		isFastCrawlingNow = true
+		lastFastCrawlTime = now
+		staminaRatio = math.max(0, staminaRatio - GameConfig.Crawl.StaminaDrainRate * dt)
+		if staminaRatio <= 0.001 then
+			staminaRatio = 0
+			exhausted = true
+			isFastCrawlingNow = false
+		end
+	else
+		isFastCrawlingNow = false
+		if now - lastFastCrawlTime >= GameConfig.Crawl.StaminaRegenDelay then
+			staminaRatio = math.min(1.0, staminaRatio + GameConfig.Crawl.StaminaRegenRate * dt)
+			if exhausted and staminaRatio >= GameConfig.Crawl.StaminaResumeThreshold then
+				exhausted = false
+			end
+		end
+	end
+
+	local prevFast = localPlayer:GetAttribute(NetContracts.Attributes.IsFastCrawling) == true
+	if prevFast ~= isFastCrawlingNow then
+		localPlayer:SetAttribute(NetContracts.Attributes.IsFastCrawling, isFastCrawlingNow)
+	end
+	local prevStamina = (localPlayer:GetAttribute(NetContracts.Attributes.StaminaRatio) :: number?) or 1
+	if math.abs(prevStamina - staminaRatio) >= 0.01 or (staminaRatio == 1 and prevStamina ~= 1) then
+		localPlayer:SetAttribute(NetContracts.Attributes.StaminaRatio, staminaRatio)
+	end
+
+	local camera = workspace.CurrentCamera
 	local targetSpeed = GameConfig.SafeRoom.WalkSpeed
 	if crawling then
-		local camera = workspace.CurrentCamera
 		local lookDir = if camera then camera.CFrame.LookVector else rootPart.CFrame.LookVector
 		local flatLook = Vector3.new(lookDir.X, 0, lookDir.Z)
 		if flatLook.Magnitude > 0.001 then
@@ -96,22 +152,38 @@ local function updateLocalMovementAndCamera(dt: number)
 			flatLook = Vector3.new(0, 0, -1)
 		end
 
-		local moveDir = humanoid.MoveDirection
-		local flatMove = Vector3.new(moveDir.X, 0, moveDir.Z)
-		targetSpeed = GameConfig.Crawl.ForwardWalkSpeed
+		local fwdSpeed = if isFastCrawlingNow
+			then GameConfig.Crawl.FastForwardWalkSpeed
+			else GameConfig.Crawl.ForwardWalkSpeed
+		local strafeSpeed = if isFastCrawlingNow
+			then GameConfig.Crawl.FastStrafeWalkSpeed
+			else GameConfig.Crawl.StrafeWalkSpeed
+		local revSpeed = if isFastCrawlingNow
+			then GameConfig.Crawl.FastReverseWalkSpeed
+			else GameConfig.Crawl.ReverseWalkSpeed
 
-		if flatMove.Magnitude > 0.05 then
+		targetSpeed = fwdSpeed
+		if isTryingToMove then
 			local forwardDot = flatMove.Unit:Dot(flatLook)
 			if forwardDot < -0.35 then
-				targetSpeed = GameConfig.Crawl.ReverseWalkSpeed
+				targetSpeed = revSpeed
 			elseif math.abs(forwardDot) <= 0.45 then
-				targetSpeed = GameConfig.Crawl.StrafeWalkSpeed
+				targetSpeed = strafeSpeed
 			end
 		end
 	end
 
 	local speedAlpha = 1 - math.exp(-GameConfig.Crawl.SpeedLerpRate * dt)
 	humanoid.WalkSpeed = humanoid.WalkSpeed + (targetSpeed - humanoid.WalkSpeed) * speedAlpha
+
+	-- Subtle FOV surge when scrambling so fast-crawling feels urgent
+	if camera then
+		local targetFov = if isFastCrawlingNow
+			then GameConfig.Crawl.BaseFov + GameConfig.Crawl.FastFovBoost
+			else GameConfig.Crawl.BaseFov
+		local fovAlpha = 1 - math.exp(-8 * dt)
+		camera.FieldOfView = camera.FieldOfView + (targetFov - camera.FieldOfView) * fovAlpha
+	end
 
 	local vel = rootPart.AssemblyLinearVelocity
 	local horizSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
@@ -120,10 +192,11 @@ local function updateLocalMovementAndCamera(dt: number)
 	local targetOffset: Vector3
 	if crawling then
 		if horizSpeed > 0.25 then
-			local speedRatio = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.3)
+			local speedRatio = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.8)
+			local bobBoost = if isFastCrawlingNow then GameConfig.Crawl.FastBobMultiplier else 1.0
 			bobPhase += dt * GameConfig.Crawl.BobFrequency * speedRatio
-			local bobX = math.cos(bobPhase) * GameConfig.Crawl.BobHorizontalAmp
-			local bobY = math.abs(math.sin(bobPhase)) * GameConfig.Crawl.BobVerticalAmp
+			local bobX = math.cos(bobPhase) * GameConfig.Crawl.BobHorizontalAmp * bobBoost
+			local bobY = math.abs(math.sin(bobPhase)) * GameConfig.Crawl.BobVerticalAmp * bobBoost
 			targetOffset = baseOffset + Vector3.new(bobX, bobY, 0)
 		else
 			bobPhase += dt * 1.6
@@ -176,14 +249,15 @@ local function updateCharacterPose(player: Player, dt: number)
 	if crawling then
 		if isMoving then
 			local dirSign = if horizVel:Dot(rootPart.CFrame.LookVector) >= -0.1 then 1 else -1
-			local strideScale = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.4)
+			local strideScale = math.clamp(horizSpeed / GameConfig.Crawl.ForwardWalkSpeed, 0.2, 1.9)
 			phase += dt * 6.5 * strideScale * dirSign
 		end
 		playerPhases[player] = phase
 
-		local armSwing = if isMoving then math.sin(phase) * 28 else 0
-		local legSwing = if isMoving then math.sin(phase) * 22 else 0
-		local rollSway = if isMoving then math.sin(phase) * 6 else math.sin(os.clock() * 1.4) * 1.2
+		local scrambleAmp = if horizSpeed > GameConfig.Crawl.ForwardWalkSpeed + 1.0 then 1.25 else 1.0
+		local armSwing = if isMoving then math.sin(phase) * 28 * scrambleAmp else 0
+		local legSwing = if isMoving then math.sin(phase) * 22 * scrambleAmp else 0
+		local rollSway = if isMoving then math.sin(phase) * 6 * scrambleAmp else math.sin(os.clock() * 1.4) * 1.2
 
 		-- Lay Torso prone (-82 deg pitch) and tuck backward slightly so Head clears duct walls.
 		applyPart0Transform(

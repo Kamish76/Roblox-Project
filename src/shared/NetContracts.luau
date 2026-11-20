@@ -30,6 +30,8 @@ local NetContracts = {
 		HeadlampOn = "HeadlampOn",
 		InSafeRoom = "InSafeRoom",
 		IsCrawling = "IsCrawling",
+		IsFastCrawling = "IsFastCrawling",
+		StaminaRatio = "StaminaRatio",
 		PanicRatio = "PanicRatio",
 		IsEliminated = "IsEliminated",
 	},

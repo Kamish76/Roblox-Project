@@ -1,8 +1,9 @@
 --!strict
 --[[
-	Client Panic & Noise emitter:
-	- Renders Stale Air / Panic HUD bar & pulsing red edge vignette when PanicRatio > 0.05 in vents.
-	- Emits rate-limited Crawl noise alerts to server when moving fast inside vents.
+	Client Panic, Stamina & Noise emitter:
+	- Renders Stale Air / Panic HUD bar & pulsing red edge vignette when PanicRatio > 0.04 in vents.
+	- Renders auto-hiding Scramble Stamina bar when stamina < 0.99 inside vents.
+	- Emits rate-limited Crawl or loud FastCrawl noise alerts to server when moving inside vents.
 ]]
 
 local Players = game:GetService("Players")
@@ -23,6 +24,10 @@ local fillBar: Frame? = nil
 local statusLbl: TextLabel? = nil
 local vignette: Frame? = nil
 
+local staminaBox: Frame? = nil
+local staminaFill: Frame? = nil
+local staminaLbl: TextLabel? = nil
+
 local function updateVisuals(ratio: number)
 	if not container or not fillBar or not statusLbl or not vignette then
 		return
@@ -33,29 +38,50 @@ local function updateVisuals(ratio: number)
 	container.Visible = visible
 	vignette.Visible = visible and ratio > 0.45
 
-	if not visible then
-		return
+	if visible then
+		fillBar.Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1)
+		if ratio >= 0.85 then
+			fillBar.BackgroundColor3 = Color3.fromRGB(235, 65, 55)
+			statusLbl.Text = "PANIC: GASPING!"
+			statusLbl.TextColor3 = Color3.fromRGB(255, 110, 100)
+		elseif ratio >= 0.50 then
+			fillBar.BackgroundColor3 = Color3.fromRGB(240, 165, 55)
+			statusLbl.Text = "STALE AIR: TENSE"
+			statusLbl.TextColor3 = Color3.fromRGB(245, 195, 95)
+		else
+			fillBar.BackgroundColor3 = Color3.fromRGB(130, 185, 225)
+			statusLbl.Text = "STALE AIR"
+			statusLbl.TextColor3 = Color3.fromRGB(190, 215, 235)
+		end
+
+		if vignette.Visible then
+			local pulse = (math.sin(os.clock() * (4 + ratio * 6)) + 1) * 0.5
+			local baseAlpha = 1 - math.clamp((ratio - 0.45) * 0.9, 0.05, 0.55)
+			vignette.BackgroundTransparency = math.clamp(baseAlpha - pulse * 0.08, 0.35, 0.96)
+		end
 	end
 
-	fillBar.Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1)
-	if ratio >= 0.85 then
-		fillBar.BackgroundColor3 = Color3.fromRGB(235, 65, 55)
-		statusLbl.Text = "PANIC: GASPING!"
-		statusLbl.TextColor3 = Color3.fromRGB(255, 110, 100)
-	elseif ratio >= 0.50 then
-		fillBar.BackgroundColor3 = Color3.fromRGB(240, 165, 55)
-		statusLbl.Text = "STALE AIR: TENSE"
-		statusLbl.TextColor3 = Color3.fromRGB(245, 195, 95)
-	else
-		fillBar.BackgroundColor3 = Color3.fromRGB(130, 185, 225)
-		statusLbl.Text = "STALE AIR"
-		statusLbl.TextColor3 = Color3.fromRGB(190, 215, 235)
-	end
-
-	if vignette.Visible then
-		local pulse = (math.sin(os.clock() * (4 + ratio * 6)) + 1) * 0.5
-		local baseAlpha = 1 - math.clamp((ratio - 0.45) * 0.9, 0.05, 0.55)
-		vignette.BackgroundTransparency = math.clamp(baseAlpha - pulse * 0.08, 0.35, 0.96)
+	if staminaBox and staminaFill and staminaLbl then
+		local stamina = (localPlayer:GetAttribute(NetContracts.Attributes.StaminaRatio) :: number?) or 1.0
+		local isFast = localPlayer:GetAttribute(NetContracts.Attributes.IsFastCrawling) == true
+		local showStamina = (not inSafeRoom) and (stamina < 0.99 or isFast)
+		staminaBox.Visible = showStamina
+		if showStamina then
+			staminaFill.Size = UDim2.fromScale(math.clamp(stamina, 0, 1), 1)
+			if isFast then
+				staminaFill.BackgroundColor3 = Color3.fromRGB(245, 185, 65)
+				staminaLbl.Text = "SCRAMBLING [LOUD]"
+				staminaLbl.TextColor3 = Color3.fromRGB(255, 210, 115)
+			elseif stamina < 0.20 then
+				staminaFill.BackgroundColor3 = Color3.fromRGB(220, 75, 65)
+				staminaLbl.Text = "WINDED"
+				staminaLbl.TextColor3 = Color3.fromRGB(245, 130, 120)
+			else
+				staminaFill.BackgroundColor3 = Color3.fromRGB(165, 215, 175)
+				staminaLbl.Text = "STAMINA [SHIFT]"
+				staminaLbl.TextColor3 = Color3.fromRGB(195, 225, 200)
+			end
+		end
 	end
 end
 
@@ -123,10 +149,54 @@ local function createHud()
 	fill.ZIndex = 4
 	fill.Parent = track
 
+	local sBox = Instance.new("Frame")
+	sBox.Name = "StaminaBox"
+	sBox.AnchorPoint = Vector2.new(0, 1)
+	sBox.Position = UDim2.new(0, 20, 1, -92)
+	sBox.Size = UDim2.fromOffset(220, 30)
+	sBox.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
+	sBox.BackgroundTransparency = 0.35
+	sBox.BorderSizePixel = 0
+	sBox.Visible = false
+	sBox.ZIndex = 2
+	sBox.Parent = gui
+
+	local sLbl = Instance.new("TextLabel")
+	sLbl.Name = "Label"
+	sLbl.Position = UDim2.fromOffset(8, 2)
+	sLbl.Size = UDim2.new(1, -16, 0, 14)
+	sLbl.BackgroundTransparency = 1
+	sLbl.Font = Enum.Font.Code
+	sLbl.TextSize = 11
+	sLbl.TextXAlignment = Enum.TextXAlignment.Left
+	sLbl.Text = "STAMINA [SHIFT]"
+	sLbl.ZIndex = 3
+	sLbl.Parent = sBox
+
+	local sTrack = Instance.new("Frame")
+	sTrack.Name = "Track"
+	sTrack.Position = UDim2.fromOffset(8, 19)
+	sTrack.Size = UDim2.new(1, -16, 0, 5)
+	sTrack.BackgroundColor3 = Color3.fromRGB(28, 34, 42)
+	sTrack.BorderSizePixel = 0
+	sTrack.ZIndex = 3
+	sTrack.Parent = sBox
+
+	local sFill = Instance.new("Frame")
+	sFill.Name = "Fill"
+	sFill.Size = UDim2.fromScale(1, 1)
+	sFill.BackgroundColor3 = Color3.fromRGB(165, 215, 175)
+	sFill.BorderSizePixel = 0
+	sFill.ZIndex = 4
+	sFill.Parent = sTrack
+
 	container = frame
 	fillBar = fill
 	statusLbl = lbl
 	vignette = vig
+	staminaBox = sBox
+	staminaFill = sFill
+	staminaLbl = sLbl
 end
 
 function PanicController.init()
@@ -165,8 +235,15 @@ function PanicController.init()
 		end
 
 		local horizSpeed = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
-		if horizSpeed > 2.2 then
-			local now = os.clock()
+		local isFast = localPlayer:GetAttribute(NetContracts.Attributes.IsFastCrawling) == true
+		local now = os.clock()
+
+		if isFast and horizSpeed > 3.5 then
+			if now - lastCrawlNoiseTime >= 0.55 then
+				lastCrawlNoiseTime = now
+				noiseRemote:FireServer({ noiseType = "FastCrawl" })
+			end
+		elseif horizSpeed > 2.2 then
 			if now - lastCrawlNoiseTime >= 1.2 then
 				lastCrawlNoiseTime = now
 				noiseRemote:FireServer({ noiseType = "Crawl" })

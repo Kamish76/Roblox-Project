@@ -74,6 +74,10 @@ function PlayerStateService.setStance(player: Player, inSafeRoom: boolean, targe
 	local isCrawling = not inSafeRoom
 	player:SetAttribute(NetContracts.Attributes.InSafeRoom, inSafeRoom)
 	player:SetAttribute(NetContracts.Attributes.IsCrawling, isCrawling)
+	player:SetAttribute(NetContracts.Attributes.IsFastCrawling, false)
+	if inSafeRoom then
+		player:SetAttribute(NetContracts.Attributes.StaminaRatio, 1.0)
+	end
 
 	local character = player.Character
 	if not character then

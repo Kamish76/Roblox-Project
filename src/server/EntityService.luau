@@ -41,6 +41,7 @@ local lastRepairPeekTime = -100
 
 local lastDetectionTime = 0
 local lastPanicTime = 0
+local activeVentPlayerCount = 0
 local lastGaspTimes: { [Player]: number } = {}
 local lastNoiseTimes: { [Player]: number } = {}
 local initialized = false
@@ -467,7 +468,8 @@ local function enterRetreat(ventPlayers: { VentPlayerInfo })
 	stareTimer = 0
 	flinchTimer = 0
 	wasSpotted = false
-	retreatCooldownTimer = GameConfig.Entity.RetreatCooldown
+	local cdScale = if #ventPlayers >= 2 then GameConfig.Entity.MultiplayerRetreatCooldownScale else 1.0
+	retreatCooldownTimer = GameConfig.Entity.RetreatCooldown * cdScale
 	setDestination(pickRetreatTile(ventPlayers))
 end
 
@@ -507,6 +509,7 @@ function EntityService.tryRepairCornerPeek(player: Player): boolean
 	end
 
 	local ventPlayers = getVentPlayers()
+	activeVentPlayerCount = #ventPlayers
 	-- Never teleport visibly out of thin air while any player is looking at the entity
 	for _, vp in ipairs(ventPlayers) do
 		if isPlayerLookingAtEntity(vp) then
@@ -583,19 +586,27 @@ function EntityService.tryRepairCornerPeek(player: Player): boolean
 	return true
 end
 
-function EntityService.alertNoise(worldPos: Vector3, radius: number)
+function EntityService.alertNoise(worldPos: Vector3, radius: number, sourcePlayer: Player?, isHighPriority: boolean?)
 	if aiState == "Chase" or aiState == "Retreat" then
 		return
 	end
 	local dist = (entityCore.Position - worldPos).Magnitude
 	if dist <= radius * activeProfile.noiseSensitivity then
+		-- Loud FastCrawl scrambling at close/mid range snaps the entity straight into Chase
+		if isHighPriority and sourcePlayer and dist <= GameConfig.Entity.FastCrawlChaseRadius then
+			enterChase(sourcePlayer)
+			setDestination(EntityService.worldToTileKey(worldPos))
+			return
+		end
+
 		local goalKey = EntityService.worldToTileKey(worldPos)
-		if aiState == "Patrol" and retreatCooldownTimer <= 0 then
+		if (aiState == "Patrol" or (isHighPriority and aiState == "Lurk")) and (retreatCooldownTimer <= 0 or isHighPriority) then
 			setState("Stalk")
+			targetPlayer = sourcePlayer or targetPlayer
 			stareTimer = 0
 			wasSpotted = false
 		end
-		setDestination(pickLurkTileForPlayer(goalKey))
+		setDestination(if isHighPriority then goalKey else pickLurkTileForPlayer(goalKey))
 	end
 end
 
@@ -628,6 +639,7 @@ local function updateDetectionAndElimination(dt: number)
 	end
 
 	local ventPlayers = getVentPlayers()
+	activeVentPlayerCount = #ventPlayers
 
 	-- 1. Elimination check in all states
 	for _, vp in ipairs(ventPlayers) do
@@ -763,14 +775,18 @@ local function updateDetectionAndElimination(dt: number)
 				enterRetreat(ventPlayers)
 				return
 			end
-		elseif closestVP and closestDist <= GameConfig.Entity.StalkAcquireRange and retreatCooldownTimer <= 0 then
-			setState("Stalk")
-			targetPlayer = closestVP.player
-			stareTimer = 0
-			flinchTimer = 0
-			wasSpotted = false
-			local playerTile = EntityService.worldToTileKey(closestVP.root.Position)
-			setDestination(pickLurkTileForPlayer(playerTile))
+		elseif closestVP then
+			local acquireRange = GameConfig.Entity.StalkAcquireRange
+				+ (if #ventPlayers >= 2 then GameConfig.Entity.MultiplayerAcquireRangeBonus else 0)
+			if closestDist <= acquireRange and retreatCooldownTimer <= 0 then
+				setState("Stalk")
+				targetPlayer = closestVP.player
+				stareTimer = 0
+				flinchTimer = 0
+				wasSpotted = false
+				local playerTile = EntityService.worldToTileKey(closestVP.root.Position)
+				setDestination(pickLurkTileForPlayer(playerTile))
+			end
 		end
 	end
 end
@@ -864,12 +880,14 @@ local function stepMovement(dt: number)
 		end
 	end
 
+	local stalkSpeed = GameConfig.Entity.StalkSpeed
+		+ (if activeVentPlayerCount >= 2 then GameConfig.Entity.MultiplayerStalkSpeedBonus else 0)
 	local moveSpeed = if aiState == "Retreat"
 		then GameConfig.Entity.RetreatSpeed
 		elseif aiState == "Chase"
-		then activeProfile.chaseCadence * 5.0 -- ~9.25 studs/s (faster than 5.5 crawl)
+		then activeProfile.chaseCadence * 5.2 -- ~9.62 studs/s (faster than 8.4 fast-crawl on straightaways)
 		elseif aiState == "Stalk"
-		then GameConfig.Entity.StalkSpeed
+		then stalkSpeed
 		else activeProfile.patrolCadence * MapLayout.CELL_SIZE * GameConfig.Entity.PatrolSpeedMultiplier
 
 	local currentPos = entityCore.Position
@@ -931,8 +949,11 @@ function EntityService.init()
 		if player:GetAttribute(NetContracts.Attributes.InSafeRoom) ~= false then
 			return
 		end
+		local noiseType = (payload :: any).noiseType
+		local isFast = noiseType == "FastCrawl"
+		local minInterval = if isFast then 0.45 else 0.8
 		local now = os.clock()
-		if now - (lastNoiseTimes[player] or 0) < 0.8 then
+		if now - (lastNoiseTimes[player] or 0) < minInterval then
 			return
 		end
 		lastNoiseTimes[player] = now
@@ -940,7 +961,10 @@ function EntityService.init()
 		local char = player.Character
 		local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
 		if root then
-			EntityService.alertNoise(root.Position, GameConfig.Entity.CrawlNoiseRadius)
+			local radius = if isFast
+				then GameConfig.Entity.FastCrawlNoiseRadius
+				else GameConfig.Entity.CrawlNoiseRadius
+			EntityService.alertNoise(root.Position, radius, player, isFast)
 		end
 	end)
 
