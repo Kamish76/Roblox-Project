@@ -1,15 +1,17 @@
 # Graph Report - roblox-project  (2026-11-20)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 19 files · ~28,761 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 5 file(s) not represented in the graph (top: (none) 2, .blend 1, .fbx 1)
 
 ## Summary
-- 130 nodes · 260 edges · 14 communities (12 shown, 2 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 27 edges (avg confidence: 0.85)
+- 149 nodes · 304 edges · 14 communities (12 shown, 2 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 30 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5e2180e4`
+- Built from commit: `6528f41c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,36 +22,36 @@
 - EntityService.luau
 - MapLayout.luau
 - CrawlController.luau
-- shared_waitforchild
-- NetContracts.getRemoteEvent
+- EntityAnimator.luau
+- AudioController.luau
 - HeadlampController.luau
 - SafeRoomUI.luau
 - updateDetectionAndElimination
 - pickRetreatTile
 
 ## God Nodes (most connected - your core abstractions)
-1. `updateDetectionAndElimination()` - 11 edges
-2. `updateNodeVisuals()` - 9 edges
-3. `EntityService.tryRepairCornerPeek()` - 9 edges
+1. `AudioController.init()` - 13 edges
+2. `updateDetectionAndElimination()` - 13 edges
+3. `updateNodeVisuals()` - 9 edges
 4. `broadcastState()` - 8 edges
 5. `RoundService.init()` - 8 edges
 6. `RoundService.startNewRound()` - 8 edges
-7. `NetContracts.getRemoteEvent()` - 8 edges
-8. `EntityService.alertNoise()` - 7 edges
-9. `pickRetreatTile()` - 7 edges
-10. `EntityService.worldToTileKey()` - 7 edges
+7. `pickCorridorPeekCorner()` - 8 edges
+8. `MapLayout.getTileByKey()` - 8 edges
+9. `NetContracts.getRemoteEvent()` - 8 edges
+10. `EntityService.alertNoise()` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `EntityService.tileKeyToWorld()` --calls--> `MapLayout.tileToWorld()`  [INFERRED]
-  src/server/EntityService.luau → src/shared/MapLayout.luau
-- `PlayerStateService.init()` --calls--> `NetContracts.getRemoteEvent()`  [INFERRED]
-  src/server/PlayerStateService.luau → src/shared/NetContracts.luau
-- `RoundService.startNewRound()` --calls--> `PlayerStateService.transitionToSafeRoom()`  [INFERRED]
-  src/server/RoundService.luau → src/server/PlayerStateService.luau
 - `buildStatePayload()` --calls--> `RepairService.getActiveFaultSectors()`  [INFERRED]
   src/server/RoundService.luau → src/server/RepairService.luau
-- `pickBalancedFaultIds()` --calls--> `MapLayout.getRepairSlots()`  [INFERRED]
-  src/server/RoundService.luau → src/shared/MapLayout.luau
+- `EntityService.tileKeyToWorld()` --calls--> `MapLayout.tileToWorld()`  [INFERRED]
+  src/server/EntityService.luau → src/shared/MapLayout.luau
+- `AudioController.init()` --calls--> `NetContracts.getRemoteEvent()`  [INFERRED]
+  src/client/AudioController.luau → src/shared/NetContracts.luau
+- `RoundService.startNewRound()` --calls--> `PlayerStateService.transitionToSafeRoom()`  [INFERRED]
+  src/server/RoundService.luau → src/server/PlayerStateService.luau
+- `PlayerStateService.init()` --calls--> `NetContracts.getRemoteEvent()`  [INFERRED]
+  src/server/PlayerStateService.luau → src/shared/NetContracts.luau
 
 ## Import Cycles
 - None detected.
@@ -61,16 +63,16 @@ Cohesion: 0.23
 Nodes (12): clearCharacterConnections(), ensureCollisionGroup(), getSafeRoomReturnCFrame(), getVentEntryCFrame(), onCharacterAdded(), onPlayerAdded(), onPlayerRemoving(), PlayerStateService.init() (+4 more)
 
 ### Community 1 - "RoundService.luau"
-Cohesion: 0.30
-Nodes (14): RepairService.getActiveFaultSectors(), RepairService.getRepairedCount(), broadcastState(), buildStatePayload(), formatSectorList(), pickBalancedFaultIds(), RoundService.checkSquadWipe(), RoundService.getState() (+6 more)
+Cohesion: 0.34
+Nodes (13): RepairService.getRepairedCount(), broadcastState(), buildStatePayload(), formatSectorList(), pickBalancedFaultIds(), RoundService.checkSquadWipe(), RoundService.getState(), RoundService.init() (+5 more)
 
 ### Community 2 - "RepairService.luau"
-Cohesion: 0.27
-Nodes (10): getFaultLight(), getPrompt(), getSparks(), isPlayerAliveNear(), RepairService.activateFaults(), RepairService.completeNode(), RepairService.init(), RepairService.setNodeProgress() (+2 more)
+Cohesion: 0.25
+Nodes (11): getFaultLight(), getPrompt(), getSparks(), isPlayerAliveNear(), RepairService.activateFaults(), RepairService.completeNode(), RepairService.getActiveFaultSectors(), RepairService.init() (+3 more)
 
 ### Community 3 - "EntityService.luau"
-Cohesion: 0.23
-Nodes (7): EntityService.tryRepairCornerPeek(), getVentPlayers(), hasLineOfSight(), hasLineOfSightFrom(), isPlayerLookingAtEntity(), positionLurkPeekRig(), updatePanicLoop()
+Cohesion: 0.24
+Nodes (3): hasLineOfSight(), hasLineOfSightFrom(), isPlayerLookingAtEntity()
 
 ### Community 4 - "MapLayout.luau"
 Cohesion: 0.24
@@ -80,29 +82,29 @@ Nodes (9): EntityService.worldToTileKey(), pickPatrolDestination(), MapLayout.fi
 Cohesion: 0.38
 Nodes (8): applyPart0Transform(), applyStancePhysics(), CrawlController.init(), enforceLocalHumanoid(), getRestC0Rotation(), isPlayerCrawling(), updateCharacterPose(), updateLocalMovementAndCamera()
 
-### Community 6 - "shared_waitforchild"
-Cohesion: 0.24
-Nodes (3): createHud(), PanicController.init(), updateVisuals()
+### Community 6 - "EntityAnimator.luau"
+Cohesion: 0.43
+Nodes (7): applyCrawlLimbs(), bindEntityModel(), composeBone(), findAndBindEntity(), rotAround(), setTarget(), updateAnimation()
 
-### Community 7 - "NetContracts.getRemoteEvent"
-Cohesion: 0.42
-Nodes (7): AudioController.init(), AudioController.playScareSting(), createSound(), ensureEntityAudio(), ensureFaultHum(), NetContracts.getOrCreateRemotesFolder(), NetContracts.getRemoteEvent()
+### Community 7 - "AudioController.luau"
+Cohesion: 0.41
+Nodes (12): AudioController.init(), AudioController.playScareSting(), checkEntityOccluded(), createSound(), ensureEntityAudio(), ensurePhantomAnchor(), ensureRepairNodeAudio(), playFadeSnippet() (+4 more)
 
 ### Community 8 - "HeadlampController.luau"
 Cohesion: 0.42
 Nodes (7): applyLocalLightState(), attachTeammateLight(), createLocalHeadlampRig(), createLocalHud(), HeadlampController.init(), updateHud(), watchRemotePlayer()
 
 ### Community 9 - "SafeRoomUI.luau"
-Cohesion: 0.46
-Nodes (7): applyState(), createHud(), cycleSpectate(), formatSectors(), restoreLocalCamera(), SafeRoomUI.init(), triggerScareFlash()
+Cohesion: 0.14
+Nodes (12): createHud(), PanicController.init(), updateVisuals(), applyState(), createHud(), cycleSpectate(), formatSectors(), restoreLocalCamera() (+4 more)
 
 ### Community 10 - "updateDetectionAndElimination"
-Cohesion: 0.57
-Nodes (7): enterChase(), enterRetreat(), EntityService.alertNoise(), pickLurkTileForPlayer(), setDestination(), setState(), updateDetectionAndElimination()
+Cohesion: 0.33
+Nodes (11): enterChase(), enterLurk(), enterRetreat(), enterScrambleToCorner(), EntityService.alertNoise(), getVentPlayers(), isSameCorridorAxis(), setDestination() (+3 more)
 
 ### Community 11 - "pickRetreatTile"
-Cohesion: 0.60
-Nodes (5): EntityService.teleportToTile(), EntityService.tileKeyToWorld(), pickRetreatTile(), positionRig(), MapLayout.getTileByKey()
+Cohesion: 0.39
+Nodes (8): EntityService.teleportToTile(), EntityService.tileKeyToWorld(), isCornerTile(), pickClosestCornerForScramble(), pickCorridorPeekCorner(), pickRetreatTile(), positionRig(), MapLayout.getTileByKey()
 
 ## Knowledge Gaps
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
@@ -110,9 +112,11 @@ Nodes (5): EntityService.teleportToTile(), EntityService.tileKeyToWorld(), pickR
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NetContracts.getRemoteEvent()` connect `NetContracts.getRemoteEvent` to `PlayerStateService.luau`, `RoundService.luau`, `shared_waitforchild`, `HeadlampController.luau`, `SafeRoomUI.luau`?**
-  _High betweenness centrality (0.069) - this node is a cross-community bridge._
-- **Why does `RoundService.init()` connect `RoundService.luau` to `RepairService.luau`, `NetContracts.getRemoteEvent`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **Why does `RoundService.startNewRound()` connect `RoundService.luau` to `PlayerStateService.luau`, `RepairService.luau`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `NetContracts.getRemoteEvent()` connect `SafeRoomUI.luau` to `HeadlampController.luau`, `PlayerStateService.luau`, `RoundService.luau`, `AudioController.luau`?**
+  _High betweenness centrality (0.065) - this node is a cross-community bridge._
+- **Should `SafeRoomUI.luau` be split into smaller, more focused modules?**
+  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
+- **Why does `RoundService.init()` connect `RoundService.luau` to `SafeRoomUI.luau`, `RepairService.luau`?**
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
+- **Why does `AudioController.init()` connect `AudioController.luau` to `SafeRoomUI.luau`?**
+  _High betweenness centrality (0.022) - this node is a cross-community bridge._

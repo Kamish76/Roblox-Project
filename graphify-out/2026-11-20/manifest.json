@@ -1,0 +1,154 @@
+{
+  "default.project.json": {
+    "mtime": 1795097797.2761805,
+    "seen": 1795098318.6329093,
+    "ast_hash": "f7654ee099ec8f3ed59a883c48f9fb9e",
+    "semantic_hash": "f7654ee099ec8f3ed59a883c48f9fb9e",
+    "ast_empty": true
+  },
+  "src/client/init.client.luau": {
+    "mtime": 1795143240.2868903,
+    "seen": 1795146575.8059807,
+    "ast_hash": "a9575f767ce533aa294a210788546079",
+    "semantic_hash": ""
+  },
+  "src/server/init.server.luau": {
+    "mtime": 1795145142.841771,
+    "seen": 1795146575.8059807,
+    "ast_hash": "098522bb3e3096b1991e3fb3f7a97ad6",
+    "semantic_hash": ""
+  },
+  "src/character/Animate.client.luau": {
+    "mtime": 1795097838.2173686,
+    "seen": 1795098318.6329093,
+    "ast_hash": "bda66d2634568a07294c1f0381b207c2",
+    "semantic_hash": "bda66d2634568a07294c1f0381b207c2"
+  },
+  "src/client/CrawlController.luau": {
+    "mtime": 1795139792.9104922,
+    "seen": 1795140779.9592092,
+    "ast_hash": "6fcd88eaf53e982787b526b2e3e48bb7",
+    "semantic_hash": "6fcd88eaf53e982787b526b2e3e48bb7"
+  },
+  "src/client/HeadlampController.luau": {
+    "mtime": 1795102862.2543223,
+    "seen": 1795103112.428878,
+    "ast_hash": "4e98887b5e0e8c2d800f8df3a59e93fa",
+    "semantic_hash": "4e98887b5e0e8c2d800f8df3a59e93fa"
+  },
+  "src/server/PlayerStateService.luau": {
+    "mtime": 1795139798.6830246,
+    "seen": 1795140779.9607143,
+    "ast_hash": "14877270c07bab1edd1fe0631f53709c",
+    "semantic_hash": "14877270c07bab1edd1fe0631f53709c"
+  },
+  "src/shared/EntityProfiles.luau": {
+    "mtime": 1795097802.0621035,
+    "seen": 1795098318.6339073,
+    "ast_hash": "121534d412e48078e6a75191fa682bc0",
+    "semantic_hash": "121534d412e48078e6a75191fa682bc0"
+  },
+  "src/shared/GameConfig.luau": {
+    "mtime": 1795145812.4886904,
+    "seen": 1795146575.8059807,
+    "ast_hash": "c92203fa570944f5505ad48b8107ce9a",
+    "semantic_hash": ""
+  },
+  "src/shared/NetContracts.luau": {
+    "mtime": 1795139719.086556,
+    "seen": 1795140779.961719,
+    "ast_hash": "930b5e9762d2a5321d5288a6c4a65dae",
+    "semantic_hash": "930b5e9762d2a5321d5288a6c4a65dae"
+  },
+  "src/shared/MapLayout.luau": {
+    "mtime": 1795139722.1178203,
+    "seen": 1795140779.961719,
+    "ast_hash": "dcdfd11e2fcdda7636c41d96c73b78f6",
+    "semantic_hash": "dcdfd11e2fcdda7636c41d96c73b78f6"
+  },
+  "src/client/SafeRoomUI.luau": {
+    "mtime": 1795103381.042653,
+    "seen": 1795103661.2828317,
+    "ast_hash": "6f4da9025dd88728c457f6e039383dd5",
+    "semantic_hash": "6f4da9025dd88728c457f6e039383dd5"
+  },
+  "src/server/RepairService.luau": {
+    "mtime": 1795106226.9736426,
+    "seen": 1795107862.679035,
+    "ast_hash": "2f5b7647d32149e0028f5e97975ecd2d",
+    "semantic_hash": "2f5b7647d32149e0028f5e97975ecd2d"
+  },
+  "src/server/RoundService.luau": {
+    "mtime": 1795103354.6915958,
+    "seen": 1795103661.2828317,
+    "ast_hash": "f5c74aeb92e40a7517e71f28174601d9",
+    "semantic_hash": "f5c74aeb92e40a7517e71f28174601d9"
+  },
+  "src/client/PanicController.luau": {
+    "mtime": 1795139794.8797064,
+    "seen": 1795140779.9592092,
+    "ast_hash": "6cfc59a1e3a6839152897544c5d04a69",
+    "semantic_hash": "6cfc59a1e3a6839152897544c5d04a69"
+  },
+  "src/server/EntityService.luau": {
+    "mtime": 1795145814.0777423,
+    "seen": 1795146575.8059807,
+    "ast_hash": "5d9bf60b27a672729cf87abbf8fe8241",
+    "semantic_hash": ""
+  },
+  "src/client/AudioController.luau": {
+    "mtime": 1795139796.7687266,
+    "seen": 1795140779.9592092,
+    "ast_hash": "cbff1b99d79add8cb6bb3c7145e1343f",
+    "semantic_hash": "cbff1b99d79add8cb6bb3c7145e1343f"
+  },
+  "assets/audio/sfx-manifest.json": {
+    "mtime": 1795140219.0253067,
+    "seen": 1795140779.9580657,
+    "ast_hash": "252df802e4e4058dec71832d073ef2d2",
+    "semantic_hash": "252df802e4e4058dec71832d073ef2d2",
+    "ast_empty": true
+  },
+  "src/client/EntityAnimator.luau": {
+    "mtime": 1795146119.1496315,
+    "seen": 1795146575.8059807,
+    "ast_hash": "04d39c0753acf1469c9dbdf21b462a06",
+    "semantic_hash": ""
+  },
+  "GEMINI.md": {
+    "mtime": 1795097317.1848433,
+    "seen": 1795146575.8059807,
+    "ast_hash": "5196e22178e9205e863cecf4d2c08cb7",
+    "semantic_hash": ""
+  },
+  "docs/ARCHITECTURE.md": {
+    "mtime": 1795145543.780429,
+    "seen": 1795146575.8059807,
+    "ast_hash": "cae4632b844fe177c10d94aab1820f2f",
+    "semantic_hash": ""
+  },
+  "docs/DECISIONS.md": {
+    "mtime": 1795099117.159232,
+    "seen": 1795146575.8059807,
+    "ast_hash": "57d252da466705212b041c5b48703fad",
+    "semantic_hash": ""
+  },
+  "docs/GDD.md": {
+    "mtime": 1795140318.4454536,
+    "seen": 1795146575.8059807,
+    "ast_hash": "b88ba2e1b9ace0351578ca77e9e23908",
+    "semantic_hash": ""
+  },
+  "docs/README.md": {
+    "mtime": 1795097299.455831,
+    "seen": 1795146575.8059807,
+    "ast_hash": "7f10abd05c7f2c8a0b546d6f0c35a320",
+    "semantic_hash": ""
+  },
+  "docs/ROADMAP.md": {
+    "mtime": 1795103654.2728083,
+    "seen": 1795146575.8059807,
+    "ast_hash": "65372db73e2de15962846e25f1afefbf",
+    "semantic_hash": ""
+  }
+}
