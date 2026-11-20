@@ -60,7 +60,8 @@ src/
     ├── HeadlampController.luau [Exists] Camera-tracked SpotLight rig, [F] toggle, proximity flicker & teammate beams
     ├── PanicController.luau  [Exists]  Stale Air / Panic HUD, pulsing vignette & Crawl noise emitter
     ├── SafeRoomUI.luau       [Exists]  Work Order HUD, extraction/wipe banner, ScareFlash & [Tab] squad spectate
-    └── AudioController.luau  [Exists]  3-layer spatial Sound emitters (EntityScrape, FaultHum, AmbientCreak/Click/Gasp/Sting)
+    ├── AudioController.luau  [Exists]  3-layer spatial Sound emitters (EntityScrape, FaultHum, AmbientCreak/Click/Gasp/Sting)
+    └── EntityAnimator.luau   [Exists]  60 FPS client-side 23-bone procedural skinned-mesh animator (Patrol/Stalk/Lurk/Chase/Retreat)
 ```
 
 ---
@@ -125,7 +126,10 @@ flowchart TD
 | `StaminaRatio` | `Player` | `number` | `0.0` .. `1.0` | `CrawlController`, `PanicController` & `PlayerStateService` | `Implemented` |
 | `IsEliminated` | `Player` | `boolean` | `true \| false` | `EntityService`, `PlayerStateService` & `RoundService` | `Implemented (M5)` |
 | `PanicRatio` | `Player` | `number` | `0.0` .. `1.0` | `EntityService` & `PanicController` | `Implemented (M4)` |
-| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Stalk" \| "Lurk" \| "Retreat" \| "Chase"` | `EntityService` & `AudioController` | `Implemented (M4/M5)` |
+| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Stalk" \| "Lurk" \| "Retreat" \| "Chase"` | `EntityService`, `AudioController` & `EntityAnimator` | `Implemented (M4/M5)` |
+| `MoveSpeed` | `JointCracker` Model | `number` | `0.0+` studs/sec | `EntityAnimator` (stride speed sync) | `Implemented` |
+| `LurkSideSign` | `JointCracker` Model | `number` | `-1 \| 1` | `EntityAnimator` (corner-peek bend direction) | `Implemented` |
+| `LurkTargetPos` | `JointCracker` Model | `Vector3` | World position of player head | `EntityAnimator` (live corner-peek head tracking) | `Implemented` |
 
 ### 3.4 `CollisionGroup` Matrix
 *Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`, `Entity`.*

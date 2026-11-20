@@ -86,13 +86,6 @@ function EntityService.worldToTileKey(worldPos: Vector3): string
 	return currentTileKey
 end
 
-local function setBoneAngles(name: string, rx: number, ry: number, rz: number)
-	local b = rigBones[name]
-	if b then
-		b.Transform = CFrame.Angles(rx, ry, rz)
-	end
-end
-
 local function createEntityRig(parentMap: Instance): Model
 	local existing = parentMap:FindFirstChild(activeProfile.id)
 	if existing and existing:IsA("Model") then
@@ -125,6 +118,9 @@ local function createEntityRig(parentMap: Instance): Model
 		model.Name = activeProfile.id
 		model:SetAttribute("EntityId", activeProfile.id)
 		model:SetAttribute("EntityState", aiState)
+		model:SetAttribute("MoveSpeed", 0)
+		model:SetAttribute("LurkSideSign", 1)
+		model:SetAttribute("LurkTargetPos", Vector3.zero)
 
 		local root = model:FindFirstChild("RootPart")
 		if root and root:IsA("BasePart") then
@@ -222,54 +218,17 @@ local function createEntityRig(parentMap: Instance): Model
 end
 
 local function positionRig(baseCF: CFrame, t: number, speed: number)
-	local bob = if speed > 0.1 then math.sin(t * 10) * 0.06 else math.sin(t * 2.2) * 0.025
-	local coreCF = baseCF * CFrame.new(0, bob, 0)
-
 	if isSkinnedRig and skinnedRoot then
-		skinnedRoot.CFrame = baseCF * CFrame.new(0, -1.35 + bob, 0)
-
-		local moveAmp = math.clamp(speed / 6.0, 0, 1.35)
-		local gait = t * (6.0 + speed * 0.85)
-		local s = math.sin(gait) * moveAmp
-		local c = math.cos(gait) * moveAmp
-
-		-- Uncanny spider-crawl bone animation
-		setBoneAngles("Pelvis",   math.rad(2 * c), 0, math.rad(3 * s))
-		setBoneAngles("Spine1",   math.rad(3 * s), 0, math.rad(-4 * s))
-		setBoneAngles("Spine2",   math.rad(4 * c), 0, math.rad(5 * s))
-		setBoneAngles("Chest",    math.rad(-3 * s), 0, math.rad(-4 * s))
-
-		-- Creepy head twitch & unhinged jaw during Chase
-		local headTilt = math.sin(t * 2.9) * math.rad(14) + math.sin(t * 11.3) * math.rad(3)
-		local headNod = math.cos(t * 2.1) * math.rad(6)
-		setBoneAngles("Neck1",    headNod * 0.5, headTilt * 0.4, 0)
-		setBoneAngles("Neck2",    headNod * 0.5, headTilt * 0.6, 0)
-		setBoneAngles("Head",     math.rad(-6) + headNod * 0.3, headTilt * 0.5, 0)
-		local jawOpen = if aiState == "Chase"
-			then math.rad(22 + math.sin(t * 14) * 5)
-			else math.rad(4 + math.sin(t * 3.5) * 3)
-		setBoneAngles("Jaw", jawOpen, 0, 0)
-
-		-- Alternating double-jointed arms & legs
-		setBoneAngles("UpperArm.L", math.rad(-18 * s), 0, math.rad(10 * c))
-		setBoneAngles("Forearm.L",  math.rad(14 * c), 0, 0)
-		setBoneAngles("UpperArm.R", math.rad(18 * s), 0, math.rad(-10 * c))
-		setBoneAngles("Forearm.R",  math.rad(-14 * c), 0, 0)
-
-		setBoneAngles("Thigh.L", math.rad(16 * s), 0, math.rad(-8 * c))
-		setBoneAngles("Shin.L",  math.rad(-14 * c), 0, 0)
-		setBoneAngles("Thigh.R", math.rad(-16 * s), 0, math.rad(8 * c))
-		setBoneAngles("Shin.R",  math.rad(14 * c), 0, 0)
-
-		entityCore.CFrame = coreCF
-		local headBone = rigBones["Head"]
-		if headBone then
-			entityHead.CFrame = CFrame.new(headBone.TransformedWorldCFrame.Position) * coreCF.Rotation
-		else
-			entityHead.CFrame = coreCF * CFrame.new(0, 0.85, -2.55)
-		end
+		-- Keep RootPart flush with the vent floor; client EntityAnimator drives all 23 bones at 60 FPS!
+		skinnedRoot.CFrame = baseCF * CFrame.new(0, -1.35, 0)
+		entityModel:SetAttribute("MoveSpeed", speed)
+		entityCore.CFrame = baseCF
+		entityHead.CFrame = baseCF * CFrame.new(0, 0.90, -2.60)
 		return
 	end
+
+	local bob = if speed > 0.1 then math.sin(t * 10) * 0.06 else math.sin(t * 2.2) * 0.025
+	local coreCF = baseCF * CFrame.new(0, bob, 0)
 
 	local twitch = if speed > 0.1 then math.sin(t * 12) * 0.28 else 0
 	local headCF = coreCF * CFrame.new(0, 0.22, -1.25) * CFrame.Angles(0, 0, math.sin(t * 3.1) * 0.18)
@@ -557,48 +516,20 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 		else CFrame.new(corePos)
 
 	if isSkinnedRig and skinnedRoot then
-		-- Position skinned rig tucked behind corner, leaning neck & head around the edge toward player!
-		local peekBodyPos = basePos + sideVec * 1.15 - bestOpenDir * 0.15 + Vector3.new(0, subtleBreath, 0)
+		-- Tuck body behind corner; client EntityAnimator bends spine/neck/head around the edge to peek!
+		local peekBodyPos = basePos + sideVec * 1.15 - bestOpenDir * 0.15
 		local peekLook = Vector3.new(playerPos.X, peekBodyPos.Y, playerPos.Z)
 		local bodyCF = if (peekLook - peekBodyPos).Magnitude > 0.05
 			then CFrame.lookAt(peekBodyPos, peekLook)
 			else CFrame.new(peekBodyPos)
 		skinnedRoot.CFrame = bodyCF * CFrame.new(0, -1.35, 0)
 
-		local sway = math.sin(t * 2.5) * math.rad(4)
-		setBoneAngles("Pelvis", 0, 0, 0)
-		setBoneAngles("Spine1", 0, 0, math.rad(-8 * sideSign))
-		setBoneAngles("Spine2", math.rad(-6), 0, math.rad(-14 * sideSign))
-		setBoneAngles("Chest",  math.rad(-8), math.rad(12 * sideSign), math.rad(-16 * sideSign))
-		setBoneAngles("Neck1",  math.rad(6),  math.rad(26 * sideSign) + sway, math.rad(-14 * sideSign))
-		setBoneAngles("Neck2",  math.rad(6),  math.rad(34 * sideSign) + sway, math.rad(-10 * sideSign))
-		setBoneAngles("Head",   math.rad(-8), math.rad(16 * sideSign), math.rad(6 * sideSign))
-		setBoneAngles("Jaw",    math.rad(18 + math.sin(t * 3.1) * 3), 0, 0)
-
-		-- Reaching arm grips corner edge; back limbs stay tucked
-		if sideSign > 0 then
-			setBoneAngles("UpperArm.R", math.rad(-22), math.rad(-12), math.rad(14))
-			setBoneAngles("Forearm.R",  math.rad(24), 0, 0)
-			setBoneAngles("UpperArm.L", math.rad(12), 0, 0)
-			setBoneAngles("Forearm.L",  0, 0, 0)
-		else
-			setBoneAngles("UpperArm.L", math.rad(-22), math.rad(12), math.rad(-14))
-			setBoneAngles("Forearm.L",  math.rad(24), 0, 0)
-			setBoneAngles("UpperArm.R", math.rad(12), 0, 0)
-			setBoneAngles("Forearm.R",  0, 0, 0)
-		end
-		setBoneAngles("Thigh.L", 0, 0, 0)
-		setBoneAngles("Shin.L",  0, 0, 0)
-		setBoneAngles("Thigh.R", 0, 0, 0)
-		setBoneAngles("Shin.R",  0, 0, 0)
+		entityModel:SetAttribute("MoveSpeed", 0)
+		entityModel:SetAttribute("LurkSideSign", sideSign)
+		entityModel:SetAttribute("LurkTargetPos", playerPos)
 
 		entityCore.CFrame = bodyCF
-		local headBone = rigBones["Head"]
-		if headBone then
-			entityHead.CFrame = CFrame.new(headBone.TransformedWorldCFrame.Position) * headBaseCF.Rotation
-		else
-			entityHead.CFrame = headCF
-		end
+		entityHead.CFrame = headCF
 		return
 	end
 
