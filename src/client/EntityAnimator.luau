@@ -217,61 +217,56 @@ local function updateAnimation(dt: number)
 
 	if state == "Lurk" then
 		-- =====================================================================
-		-- LURK CORNER-PEEK MONEY SHOT:
-		-- Body tucked behind corner; spine/neck twist around the edge,
-		-- head snaps ~62 deg sideways staring at player, jaw slowly unhinges!
+		-- TRUE CORNER-PEEK:
+		-- Full body, arms, elbows & legs stay tucked compactly behind the corner wall.
+		-- ONLY the elongated neck + sideways-cracked head + glowing eyes peek out!
 		-- =====================================================================
 		lurkElapsed += dt
 		blendRate = 7.5
-		local breath = math.sin(now * 2.4)
-		local shiver = math.sin(now * 17.0) * 1.4
+		local breath = math.sin(now * 2.2)
+		local shiver = math.sin(now * 16.0) * 1.2
 
-		-- Compute subtle extra yaw/pitch toward player's actual head position
-		local aimYawDeg = 0
+		-- Compute exact yaw & pitch from body orientation toward the player down the corridor
+		local aimYawDeg = 62 * lurkSide
 		local aimPitchDeg = 0
 		if lurkTarget and lurkTarget.Magnitude > 0.1 then
 			local localTarget = rootPart.CFrame:PointToObjectSpace(lurkTarget)
-			aimYawDeg = math.clamp(math.deg(math.atan2(-localTarget.X, -localTarget.Z)), -35, 35)
-			aimPitchDeg = math.clamp(math.deg(math.atan2(localTarget.Y - 2.1, math.max(1, -localTarget.Z))), -20, 20)
+			aimYawDeg = math.clamp(math.deg(math.atan2(-localTarget.X, -localTarget.Z)), -85, 85)
+			local horiz = math.max(1, math.sqrt(localTarget.X * localTarget.X + localTarget.Z * localTarget.Z))
+			aimPitchDeg = math.clamp(math.deg(math.atan2(localTarget.Y - 2.1, horiz)), -22, 22)
 		end
 
 		local s = lurkSide
-		-- Pelvis drops low & tucks back
-		setTarget("Pelvis", -6, -8 * s, 0, Vector3.new(0, -0.18 + breath * 0.03, 0.12))
-		setTarget("Spine1", -4, 10 * s, 6 * s)
-		setTarget("Spine2", -6, 16 * s, 10 * s)
-		setTarget("Chest",  -5 + breath * 2, 18 * s, 12 * s)
+		-- Pull pelvis & torso slightly back behind the wall so zero ribs/shoulders show
+		setTarget("Pelvis", -4, 0, 0, Vector3.new(0, -0.14 + breath * 0.02, 0.25))
+		setTarget("Spine1", -2, aimYawDeg * 0.08, 0)
+		setTarget("Spine2", 2, aimYawDeg * 0.12, 0)
+		setTarget("Chest", 4 + breath * 1.5, aimYawDeg * 0.15, 0)
 
-		-- Cracked sideways neck leaning around the corner
-		setTarget("Neck1",  6 + aimPitchDeg * 0.3, 18 * s + aimYawDeg * 0.35, 22 * s)
-		setTarget("Neck2",  4 + aimPitchDeg * 0.3, 14 * s + aimYawDeg * 0.35, 24 * s)
-		setTarget("Head",   -6 + aimPitchDeg * 0.4, aimYawDeg * 0.3, (20 * s) + breath * 3 + shiver)
+		-- Crane elongated neck straight out past the corner edge, then crack head toward player!
+		setTarget("Neck1", 6 + aimPitchDeg * 0.25, aimYawDeg * 0.28, 12 * s, Vector3.new(0, 0.06, -0.22))
+		setTarget("Neck2", 4 + aimPitchDeg * 0.30, aimYawDeg * 0.32, 16 * s, Vector3.new(0, 0.04, -0.18))
+		setTarget("Head", -4 + aimPitchDeg * 0.45, aimYawDeg * 0.40, (24 * s) + breath * 2.5 + shiver)
 
-		-- Jaw slowly unhinges wider the longer it lurks (12 -> 32 deg!)
-		local jawOpen = math.min(32, 12 + lurkElapsed * 4.5) + math.sin(now * 3.8) * 2.5
-		setTarget("Jaw", -jawOpen, 0, shiver * 0.5)
+		-- Jaw slowly unhinges wider the longer it watches you
+		local jawOpen = math.min(30, 10 + lurkElapsed * 4.2) + math.sin(now * 3.4) * 2.0
+		setTarget("Jaw", -jawOpen, 0, shiver * 0.4)
 
-		-- Corner-side arm reaches forward & up to grip the duct edge; other limbs stay tucked
-		if s > 0 then
-			setTarget("Clavicle.R", 0, -14, 0)
-			setTarget("UpperArm.R", 18, 28, -24)
-			setTarget("Forearm.R",  34, 0, 12)
-			setTarget("Hand.R",     -20, 0, 0)
-			setTarget("UpperArm.L", -14, -18, 12)
-			setTarget("Forearm.L",  -16, 0, 0)
-		else
-			setTarget("Clavicle.L", 0, 14, 0)
-			setTarget("UpperArm.L", 18, -28, 24)
-			setTarget("Forearm.L",  34, 0, -12)
-			setTarget("Hand.L",     -20, 0, 0)
-			setTarget("UpperArm.R", -14, 18, -12)
-			setTarget("Forearm.R",  -16, 0, 0)
-		end
+		-- Tuck BOTH arms & legs tightly BACK behind the corner wall so ONLY the head is visible!
+		setTarget("Clavicle.L", 0, 22, -10)
+		setTarget("UpperArm.L", -28, 38, -22)
+		setTarget("Forearm.L", -35, 0, 12)
+		setTarget("Hand.L", 15, 0, 0)
 
-		setTarget("Thigh.L", -12, 10, 6)
-		setTarget("Shin.L",  14, 0, 0)
-		setTarget("Thigh.R", -12, -10, -6)
-		setTarget("Shin.R",  14, 0, 0)
+		setTarget("Clavicle.R", 0, -22, 10)
+		setTarget("UpperArm.R", -28, -38, 22)
+		setTarget("Forearm.R", -35, 0, -12)
+		setTarget("Hand.R", 15, 0, 0)
+
+		setTarget("Thigh.L", -16, 18, 10)
+		setTarget("Shin.L", 22, 0, 0)
+		setTarget("Thigh.R", -16, -18, -10)
+		setTarget("Shin.R", 22, 0, 0)
 
 	elseif state == "Chase" then
 		-- =====================================================================

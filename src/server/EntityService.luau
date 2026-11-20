@@ -516,12 +516,11 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 		else CFrame.new(corePos)
 
 	if isSkinnedRig and skinnedRoot then
-		-- Tuck body behind corner; client EntityAnimator bends spine/neck/head around the edge to peek!
-		local peekBodyPos = basePos + sideVec * 1.15 - bestOpenDir * 0.15
-		local peekLook = Vector3.new(playerPos.X, peekBodyPos.Y, playerPos.Z)
-		local bodyCF = if (peekLook - peekBodyPos).Magnitude > 0.05
-			then CFrame.lookAt(peekBodyPos, peekLook)
-			else CFrame.new(peekBodyPos)
+		-- TRUE CORNER-PEEK: Hide entire torso/elbows/legs deep behind the perpendicular wall (sideVec * 3.85),
+		-- oriented outward toward the corner edge so ONLY the extended neck & tilted head peek past the 2.3-stud wall!
+		local peekBodyPos = basePos + sideVec * 3.85 - bestOpenDir * 0.55
+		local outOfCornerDir = (-sideVec * 0.92 + bestOpenDir * 0.39).Unit
+		local bodyCF = CFrame.lookAt(peekBodyPos, peekBodyPos + outOfCornerDir)
 		skinnedRoot.CFrame = bodyCF * CFrame.new(0, -1.35, 0)
 
 		entityModel:SetAttribute("MoveSpeed", 0)
@@ -529,7 +528,9 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 		entityModel:SetAttribute("LurkTargetPos", playerPos)
 
 		entityCore.CFrame = bodyCF
-		entityHead.CFrame = headCF
+		-- Place LOS/stare anchor right where the peeking head emerges past the corner edge
+		local truePeekHeadPos = basePos + sideVec * 1.45 + bestOpenDir * 0.45 + Vector3.new(0, 0.55, 0)
+		entityHead.CFrame = CFrame.lookAt(truePeekHeadPos, Vector3.new(playerPos.X, truePeekHeadPos.Y, playerPos.Z))
 		return
 	end
 
