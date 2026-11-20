@@ -12,6 +12,7 @@
 	   - Intermittent dry EntityJointCrack, close-range EntityWetShift & studio EntityLurkExhale
 	   - Headlamp-triggered faint EntityWhisper ("turn it off...") when lurking/stalking nearby
 	   - Spotted/whip-back startle burst (EntityStartleSlap + EntityTendonSnap) on Scramble/Retreat
+	   - Reverberant spatial EntityChaseShout on Chase entry and sustained pursuit
 	   - Pre-cue Room Tone Vacuum briefly dips VentAmbience before close creature micro-cues
 	3. 3D Blind-Spot Phantom Ambience (Workspace._LocalClientVFX.PhantomAudioAnchor):
 	   - Spawns ambiguous thermal duct groans/knocks/creaks 18–36 studs behind/flanking the camera
@@ -58,6 +59,7 @@ local entityLimbSlideSound: Sound? = nil
 local entityLimbThudSound: Sound? = nil
 local entityStartleSlapSound: Sound? = nil
 local entityTendonSnapSound: Sound? = nil
+local entityChaseShoutSound: Sound? = nil
 
 -- Entity cadence & occlusion state
 local lastEntityState = ""
@@ -65,6 +67,7 @@ local nextJointCrackTime = os.clock() + 4.0
 local nextWetShiftTime = os.clock() + 6.5
 local nextLurkExhaleTime = os.clock() + 5.0
 local nextWhisperTime = os.clock() + 10.0
+local nextChaseShoutTime = 0.0
 local limbStepAccumulator = 0.0
 local nextLimbStepDistance = 2.6
 local limbStepToggle = false
@@ -576,6 +579,16 @@ local function ensureEntityAudio()
 		GameConfig.Audio.EntityMaxDistance,
 		entityAudioGroup
 	)
+
+	entityChaseShoutSound = createSound(
+		"EntityChaseShout",
+		GameConfig.Audio.EntityChaseShoutId,
+		core,
+		false,
+		GameConfig.Audio.ChaseShoutVolume,
+		GameConfig.Audio.EntityChaseShoutMaxDistance,
+		entityAudioGroup
+	)
 end
 
 local function checkEntityOccluded(camera: Camera, entity: Model, entityCore: BasePart): boolean
@@ -762,8 +775,28 @@ function AudioController.init()
 					-- Spotted / whip-back metallic duct slap + taut tendon snap right as it flees
 					playFadeSnippet(entityStartleSlapSound, GameConfig.Audio.EntityStartleSlapId, 0.42, 1.15, 1.32, 0.0, 0.3, 0.8, 1.2)
 					playFadeSnippet(entityTendonSnapSound, GameConfig.Audio.EntityTendonSnapId, 0.36, 0.92, 1.10, 0.0, 0.4, 0.6, 1.0)
+				elseif entityState == "Chase" then
+					if entityDist <= GameConfig.Audio.EntityChaseShoutMaxDistance then
+						playOneShot(
+							entityChaseShoutSound,
+							GameConfig.Audio.EntityChaseShoutId,
+							GameConfig.Audio.ChaseShoutVolume,
+							1.02,
+							1.16
+						)
+					end
+					nextChaseShoutTime = now + randRange(GameConfig.Audio.ChaseShoutIntervalMin, GameConfig.Audio.ChaseShoutIntervalMax)
 				end
 				lastEntityState = entityState
+			end
+
+			-- Sustained chase vocalization bursts
+			if entityState == "Chase" and now >= nextChaseShoutTime then
+				nextChaseShoutTime = now + randRange(GameConfig.Audio.ChaseShoutIntervalMin, GameConfig.Audio.ChaseShoutIntervalMax)
+				if entityChaseShoutSound and not entityChaseShoutSound.IsPlaying and entityDist <= GameConfig.Audio.EntityChaseShoutMaxDistance then
+					local shoutVol = GameConfig.Audio.ChaseShoutVolume * randRange(0.80, 1.0)
+					playOneShot(entityChaseShoutSound, GameConfig.Audio.EntityChaseShoutId, shoutVol, 1.00, 1.18)
+				end
 			end
 
 			-- Cadenced MoveSpeed-synced limb-by-limb crawl foley
