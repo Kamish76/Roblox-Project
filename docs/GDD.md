@@ -45,6 +45,8 @@ You and up to three coworkers are overnight HVAC/ventilation technicians crawlin
   * **Vision:** Tight passive dark awareness (~10–12 studs); expands sharply along line-of-sight (~35–45 studs) when a player's headlamp is ON.
   * **Audio:** Entity investigates crawling vibrations and loud sparking repair audio—letting players survive close passes by freezing in the dark.
 * **Stale Air / Panic Breathing:** Remaining motionless in pitch darkness with your headlamp OFF keeps you hidden visually, *but* gradually builds a **Panic / Stale Air** meter. At high panic, audible gasping/hyperventilation triggers and risks drawing the entity—preventing infinite AFK corner camping.
+* **Fast-Crawl / Scramble (`LeftShift`):** Players can hold `LeftShift` to scramble faster through enlarged ducts (`8.4` studs/s vs `5.5` normal) at the cost of finite stamina (`~4s` burst) and loud metallic banging (`42`-stud acoustic radius) that can snap **The Joint-Cracker** out of `Patrol`/`Lurk` or trigger an immediate close-range `Chase` (`<= 22` studs).
+* **Multiplayer Pressure Scaling:** When `>= 2` crawlers are active in the vents simultaneously, the entity increases `StalkSpeed`, widens `StalkAcquireRange`, and shortens `RetreatCooldown` to preserve co-op dread across the enlarged `88`-tile map.
 * **Slow Reverse Crawl:** Crawling backward is intentionally slower than crawling forward, punishing blind deep pushes down unverified corridors.
 * **Diegetic Proximity Tells:** When the entity closes within ~25 studs, player headlamps experience subtle flickering and electrical hum (minimal/no HUD clutter).
 

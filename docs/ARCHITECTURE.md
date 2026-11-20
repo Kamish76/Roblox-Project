@@ -20,7 +20,7 @@ All parent services use `"$ignoreUnknownInstances": true`:
 
 ### Current Repository Baseline (`src/`)
 * [src/shared/GameConfig.luau](../src/shared/GameConfig.luau) — Shared Safe Room & crawl physics, headlamp optics, vent dimensions, repair & Work Order configs (`[Exists]`)
-* [src/shared/MapLayout.luau](../src/shared/MapLayout.luau) — Single 1:1 Office HVAC grid blueprint (`50` tiles, `4` office wings `A`–`D` + `HUB`, `8` repair slots, `12` see-through floor grates, BFS pathing & `validate()`) (`[Exists]`)
+* [src/shared/MapLayout.luau](../src/shared/MapLayout.luau) — Single 1:1 Office HVAC grid blueprint (`88` tiles across `gx = -6..6, gz = 0..-10`, `4` asymmetric office wings `A`–`D` + staggered `HUB` spine, `8` repair slots, `24` see-through floor grates, BFS pathing & `validate()`) (`[Exists]`)
 * [src/shared/NetContracts.luau](../src/shared/NetContracts.luau) — Canonical remote, `CollectionService` tag, attribute, and `CollisionGroup` names (`[Exists]`)
 * [src/shared/EntityProfiles.luau](../src/shared/EntityProfiles.luau) — Modular `EntityProfile` registry (`JointCracker` active MVP, `ClickingCrawler` queued v0.2) (`[Exists]`)
 * [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point validating `MapLayout` and bootstrapping `PlayerStateService`, `RoundService` & `EntityService` (`[Exists]`)
@@ -89,7 +89,7 @@ flowchart TD
 | Name | Kind | Direction | Payload | Server Validation | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `HeadlampToggled` | `RemoteEvent` | Client → Server → Clients | `isOn: boolean` (Server broadcasts `player, isOn`) | `typeof(isOn) == "boolean"`, `0.25s` cooldown; sets `HeadlampOn` attribute | `Implemented (M1)` |
-| `NoiseEmitted` | `RemoteEvent` | Client → Server | `{ noiseType: "Crawl" \| "Gasp" }` | `0.8s` rate limit; server reads player `HumanoidRootPart.Position` | `Implemented (M4)` |
+| `NoiseEmitted` | `RemoteEvent` | Client → Server | `{ noiseType: "Crawl" \| "FastCrawl" \| "Gasp" }` | `0.45s` (`FastCrawl`) / `0.8s` (`Crawl`) rate limit; server reads player `HumanoidRootPart.Position` | `Implemented (M4 / Updated)` |
 | `WorkOrderSignOff` | `RemoteEvent` | Client → Server | `()` (v0.2 adds `{ deductionId: string? }`) | Verify `phase == "Active"`, `InSafeRoom == true`, and `IsEliminated ~= true` | `Implemented (M3)` |
 | `RoundStateSync` | `RemoteEvent` | Server → All Clients | `{ phase, activeSectors, repairedCount, requiredCount, totalXP, lastOutcome }` | Authoritative server broadcast | `Implemented (M3)` |
 | `PanicStateSync` | `RemoteEvent` | Server → Client | `{ panicRatio: number }` | Authoritative server `EntityService` panic loop | `Implemented (M4)` |
@@ -121,6 +121,8 @@ flowchart TD
 | `HeadlampOn` | `Player` | `boolean` | `true \| false` | `HeadlampController` & Server `EntityService` | `Implemented (M1)` |
 | `InSafeRoom` | `Player` | `boolean` | `true \| false` | `PlayerStateService`, `EntityService` & `WorkOrderSignOff` | `Implemented (M2)` |
 | `IsCrawling` | `Player` | `boolean` | `true \| false` | `CrawlController` & `PlayerStateService` | `Implemented (M2)` |
+| `IsFastCrawling` | `Player` | `boolean` | `true \| false` | `CrawlController`, `PanicController` & `AudioController` | `Implemented` |
+| `StaminaRatio` | `Player` | `number` | `0.0` .. `1.0` | `CrawlController`, `PanicController` & `PlayerStateService` | `Implemented` |
 | `IsEliminated` | `Player` | `boolean` | `true \| false` | `EntityService`, `PlayerStateService` & `RoundService` | `Implemented (M5)` |
 | `PanicRatio` | `Player` | `number` | `0.0` .. `1.0` | `EntityService` & `PanicController` | `Implemented (M4)` |
 | `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Stalk" \| "Lurk" \| "Retreat" \| "Chase"` | `EntityService` & `AudioController` | `Implemented (M4/M5)` |

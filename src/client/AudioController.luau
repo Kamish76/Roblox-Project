@@ -1,9 +1,10 @@
 --!strict
 --[[
-	Client 3-layer spatial audio & proximity tell controller:
-	1. Entity spatial Sound emitter (JointCracker scrapes/cracks, pitch scales in Chase)
-	2. Active RepairNode electrical hum (~1.75 tiles roll-off)
-	3. Ambient building creaks + headlamp click + panic gasp + scare sting
+	Client multi-layer spatial audio & proximity tell controller:
+	1. Entity spatial Sound emitter (JointCracker scrapes/cracks, pitch scales by AI state)
+	2. Active RepairNode electrical ballast hum (~2 tiles roll-off)
+	3. Local VentAmbience HVAC drone + Crawl / loud FastCrawl metallic scraping
+	4. Ambient building creaks + headlamp click + panic gasp + scare sting
 	Configured via GameConfig.Audio (empty SoundIds safely remain silent with zero console errors).
 ]]
 
@@ -27,11 +28,15 @@ local initialized = false
 local entitySound: Sound? = nil
 local faultHumSounds: { [Model]: Sound } = {}
 local ambientSound: Sound? = nil
+local ventAmbienceSound: Sound? = nil
+local crawlScrapeSound: Sound? = nil
+local fastCrawlScrapeSound: Sound? = nil
 local gaspSound: Sound? = nil
 local clickSound: Sound? = nil
 local stingSound: Sound? = nil
 local nextCreakTime = os.clock() + 10
 local lastGaspPlay = 0
+local lastCrawlAudioPlay = 0
 
 local function createSound(name: string, soundId: string, parent: Instance, looped: boolean, volume: number, maxDist: number?): Sound
 	local existing = parent:FindFirstChild(name)
@@ -72,7 +77,7 @@ local function ensureFaultHum(nodeModel: Model)
 			GameConfig.Audio.FaultHumId,
 			body,
 			true,
-			0.45,
+			0.38,
 			GameConfig.Audio.FaultHumMaxDistance
 		)
 		faultHumSounds[nodeModel] = hum
@@ -112,7 +117,7 @@ local function ensureEntityAudio()
 		GameConfig.Audio.EntityScrapeId,
 		core,
 		true,
-		0.75,
+		0.70,
 		GameConfig.Audio.EntityMaxDistance
 	)
 	entitySound = s
@@ -137,10 +142,13 @@ function AudioController.init()
 	audioFolder.Name = "ClientAudio"
 	audioFolder.Parent = SoundService
 
-	ambientSound = createSound("AmbientCreak", GameConfig.Audio.AmbientCreakId, audioFolder, false, 0.35, nil)
-	gaspSound = createSound("PanicGasp", GameConfig.Audio.PanicGaspId, audioFolder, false, 0.65, nil)
-	clickSound = createSound("HeadlampClick", GameConfig.Audio.HeadlampClickId, audioFolder, false, 0.55, nil)
-	stingSound = createSound("ScareSting", GameConfig.Audio.ScareStingId, audioFolder, false, 0.90, nil)
+	ambientSound = createSound("AmbientCreak", GameConfig.Audio.AmbientCreakId, audioFolder, false, 0.28, nil)
+	ventAmbienceSound = createSound("VentAmbience", GameConfig.Audio.VentAmbienceId, audioFolder, true, 0.14, nil)
+	crawlScrapeSound = createSound("CrawlScrape", GameConfig.Audio.CrawlScrapeId, audioFolder, false, 0.18, nil)
+	fastCrawlScrapeSound = createSound("FastCrawlScrape", GameConfig.Audio.FastCrawlScrapeId, audioFolder, false, 0.42, nil)
+	gaspSound = createSound("PanicGasp", GameConfig.Audio.PanicGaspId, audioFolder, false, 0.55, nil)
+	clickSound = createSound("HeadlampClick", GameConfig.Audio.HeadlampClickId, audioFolder, false, 0.45, nil)
+	stingSound = createSound("ScareSting", GameConfig.Audio.ScareStingId, audioFolder, false, 0.85, nil)
 
 	for _, inst in ipairs(CollectionService:GetTagged(NetContracts.Tags.RepairNode)) do
 		if inst:IsA("Model") then
@@ -155,6 +163,7 @@ function AudioController.init()
 
 	localPlayer:GetAttributeChangedSignal(NetContracts.Attributes.HeadlampOn):Connect(function()
 		if clickSound and GameConfig.Audio.HeadlampClickId ~= "" then
+			clickSound.TimePosition = 0
 			clickSound:Play()
 		end
 	end)
@@ -173,23 +182,69 @@ function AudioController.init()
 			local state = entity:GetAttribute("EntityState")
 			if state == "Retreat" then
 				entitySound.PlaybackSpeed = 1.60
+				entitySound.Volume = 0.85
 			elseif state == "Chase" then
 				entitySound.PlaybackSpeed = 1.35
+				entitySound.Volume = 0.90
 			elseif state == "Stalk" then
 				entitySound.PlaybackSpeed = 0.85
+				entitySound.Volume = 0.55
 			elseif state == "Lurk" then
 				entitySound.PlaybackSpeed = 0.55
+				entitySound.Volume = 0.30
 			else
 				entitySound.PlaybackSpeed = 1.0
+				entitySound.Volume = 0.65
 			end
 		end
 
 		local now = os.clock()
+		local inVents = localPlayer:GetAttribute(NetContracts.Attributes.InSafeRoom) == false
+
+		-- Subtle HVAC airflow drone while inside the ducts
+		if ventAmbienceSound and GameConfig.Audio.VentAmbienceId ~= "" then
+			if inVents and not ventAmbienceSound.IsPlaying then
+				ventAmbienceSound:Play()
+			elseif not inVents and ventAmbienceSound.IsPlaying then
+				ventAmbienceSound:Stop()
+			end
+		end
+
+		-- Local Crawl vs FastCrawl metallic duct contact audio
+		if inVents and localPlayer:GetAttribute(NetContracts.Attributes.IsCrawling) == true then
+			local char = localPlayer.Character
+			local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+			if root then
+				local horizSpeed = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
+				local isFast = localPlayer:GetAttribute(NetContracts.Attributes.IsFastCrawling) == true
+				if isFast and horizSpeed > 3.5 then
+					if now - lastCrawlAudioPlay >= 0.42 then
+						lastCrawlAudioPlay = now
+						if fastCrawlScrapeSound and GameConfig.Audio.FastCrawlScrapeId ~= "" then
+							fastCrawlScrapeSound.PlaybackSpeed = 1.05 + math.random() * 0.20
+							fastCrawlScrapeSound.TimePosition = 0
+							fastCrawlScrapeSound:Play()
+						end
+					end
+				elseif horizSpeed > 1.8 then
+					if now - lastCrawlAudioPlay >= 0.85 then
+						lastCrawlAudioPlay = now
+						if crawlScrapeSound and GameConfig.Audio.CrawlScrapeId ~= "" then
+							crawlScrapeSound.PlaybackSpeed = 0.85 + math.random() * 0.18
+							crawlScrapeSound.TimePosition = 0
+							crawlScrapeSound:Play()
+						end
+					end
+				end
+			end
+		end
+
 		local panicRatio = (localPlayer:GetAttribute(NetContracts.Attributes.PanicRatio) :: number?) or 0
-		if panicRatio >= GameConfig.Panic.GaspThreshold and localPlayer:GetAttribute(NetContracts.Attributes.InSafeRoom) == false then
+		if panicRatio >= GameConfig.Panic.GaspThreshold and inVents then
 			if now - lastGaspPlay >= GameConfig.Panic.GaspInterval then
 				lastGaspPlay = now
 				if gaspSound and GameConfig.Audio.PanicGaspId ~= "" then
+					gaspSound.TimePosition = 0
 					gaspSound:Play()
 				end
 			end
@@ -197,7 +252,9 @@ function AudioController.init()
 
 		if now >= nextCreakTime then
 			nextCreakTime = now + math.random(GameConfig.Audio.CreakIntervalMin, GameConfig.Audio.CreakIntervalMax)
-			if ambientSound and GameConfig.Audio.AmbientCreakId ~= "" and localPlayer:GetAttribute(NetContracts.Attributes.InSafeRoom) == false then
+			if ambientSound and GameConfig.Audio.AmbientCreakId ~= "" and inVents then
+				ambientSound.PlaybackSpeed = 0.85 + math.random() * 0.25
+				ambientSound.TimePosition = 0
 				ambientSound:Play()
 			end
 		end

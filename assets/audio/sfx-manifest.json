@@ -1,0 +1,52 @@
+{
+  "pipeline": {
+    "mcpServer": "sandraschi/sfx-mcp",
+    "installPath": "C:/Users/kamish76/.gemini/mcp-servers/sfx-mcp",
+    "mcpConfigKey": "sfx",
+    "notes": "Use sfx_search (search/download/play/tag) via sandraschi/sfx-mcp to curate and cache CC0 FreeSound audio locally, then upload custom .ogg/.mp3 files to Roblox Creator Dashboard to swap rbxassetid:// slots in src/shared/GameConfig.luau."
+  },
+  "sounds": {
+    "EntityScrapeId": {
+      "robloxAssetId": "rbxassetid://9125666321",
+      "robloxSource": "ProSoundEffects — Metal Creaks Destroying A Car Scraping Drags 1",
+      "freesoundCc0Candidate": { "id": 462276, "name": "Fabric sliding through metal duct (Contact mic)" }
+    },
+    "FaultHumId": {
+      "robloxAssetId": "rbxassetid://110483919798635",
+      "robloxSource": "BallastHumMedium2",
+      "freesoundCc0Candidate": { "id": 637544, "name": "fluorescent light hum buzz4.flac" }
+    },
+    "AmbientCreakId": {
+      "robloxAssetId": "rbxassetid://9125666441",
+      "robloxSource": "ProSoundEffects — Metal Creaks Destroying A Car Scraping Drags 3",
+      "freesoundCc0Candidate": { "id": 718442, "name": "Metal_Hatch_Small_Fumble_Close_01" }
+    },
+    "HeadlampClickId": {
+      "robloxAssetId": "rbxassetid://9114480271",
+      "robloxSource": "ProSoundEffects — Flashlight On Off Clicks 13",
+      "freesoundCc0Candidate": { "id": 690300, "name": "Flashlight Switch Click" }
+    },
+    "PanicGaspId": {
+      "robloxAssetId": "rbxassetid://94952921557556",
+      "robloxSource": "BreathingFast",
+      "freesoundCc0Candidate": { "id": 456037, "name": "heavy breathing while running" }
+    },
+    "ScareStingId": {
+      "robloxAssetId": "rbxassetid://1841353939",
+      "robloxSource": "APMOfficial — Rising Fear Hit 3"
+    },
+    "CrawlScrapeId": {
+      "robloxAssetId": "rbxassetid://9113757109",
+      "robloxSource": "ProSoundEffects — Chain Hit Metal Impacts Metal Table Leg 2",
+      "freesoundCc0Candidate": { "id": 795872, "name": "Crawling Through a Vent" }
+    },
+    "FastCrawlScrapeId": {
+      "robloxAssetId": "rbxassetid://9114801898",
+      "robloxSource": "ProSoundEffects — High School Hall Locker Open Close 11 (Metal Bang)"
+    },
+    "VentAmbienceId": {
+      "robloxAssetId": "rbxassetid://9112839813",
+      "robloxSource": "ProSoundEffects — Oil Refinery Ambience 1 (Industrial Machine Hum Loop)"
+    }
+  }
+}
