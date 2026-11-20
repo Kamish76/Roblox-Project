@@ -16,7 +16,7 @@ local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local MapLayout = require(Shared:WaitForChild("MapLayout"))
 local NetContracts = require(Shared:WaitForChild("NetContracts"))
 
-export type AIState = "Patrol" | "Stalk" | "Lurk" | "Retreat" | "Chase"
+export type AIState = "Patrol" | "Stalk" | "Scramble" | "Lurk" | "Retreat" | "Chase"
 
 local EntityService = {}
 
@@ -24,6 +24,9 @@ local activeProfile = EntityProfiles.getActiveProfile()
 local entityModel: Model
 local entityCore: Part
 local entityHead: Part
+local isSkinnedRig = false
+local skinnedRoot: BasePart? = nil
+local rigBones: { [string]: Bone } = {}
 
 local mapOffset = Vector3.zero
 local currentTileKey = GameConfig.Entity.SpawnTileKey
@@ -32,12 +35,12 @@ local pathQueue: { string } = {}
 local pathIndex = 1
 local targetPlayer: Player? = nil
 local lurkTimer = 0
-local stareTimer = 0
-local flinchTimer = 0
-local wasSpotted = false
+local unnoticedPeekTimer = 0
+local spottedPeekTimer = 0
+local lurkCorridorLostTimer = 0
+local lastPeekTileKey = ""
 local chaseLostTimer = 0
 local retreatCooldownTimer = 0
-local lastRepairPeekTime = -100
 
 local lastDetectionTime = 0
 local lastPanicTime = 0
@@ -87,6 +90,81 @@ local function createEntityRig(parentMap: Instance): Model
 	local existing = parentMap:FindFirstChild(activeProfile.id)
 	if existing and existing:IsA("Model") then
 		existing:Destroy()
+	end
+
+	table.clear(rigBones)
+	isSkinnedRig = false
+	skinnedRoot = nil
+
+	local function makeAnchorPart(name: string, size: Vector3, parent: Instance): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Transparency = 1
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.CollisionGroup = NetContracts.CollisionGroups.Entity
+		p.Parent = parent
+		return p
+	end
+
+	-- Prefer the custom Blender-sculpted Skinned Mesh Rig (ReplicatedStorage.JointCracker_Template)
+	local template = ReplicatedStorage:FindFirstChild("JointCracker_Template")
+	if template and template:IsA("Model") then
+		local model = template:Clone()
+		model.Name = activeProfile.id
+		model:SetAttribute("EntityId", activeProfile.id)
+		model:SetAttribute("EntityState", aiState)
+		model:SetAttribute("MoveSpeed", 0)
+		model:SetAttribute("LurkSideSign", 1)
+		model:SetAttribute("LurkTargetPos", Vector3.zero)
+		model:SetAttribute("TargetRootCF", CFrame.identity)
+
+		local root = model:FindFirstChild("RootPart")
+		if root and root:IsA("BasePart") then
+			for _, d in ipairs(model:GetDescendants()) do
+				if d:IsA("BasePart") then
+					d.CanCollide = false
+					d.CanQuery = false
+					d.CanTouch = false
+					d.CollisionGroup = NetContracts.CollisionGroups.Entity
+					if d == root then
+						d.Anchored = true
+						d.Transparency = 1
+						d.CastShadow = false
+					else
+						d.Anchored = false
+					end
+				elseif d:IsA("Bone") then
+					rigBones[d.Name] = d
+				end
+			end
+
+			local core = makeAnchorPart("Core", Vector3.new(1.2, 0.85, 2.0), model)
+			local head = makeAnchorPart("Head", Vector3.new(0.85, 0.85, 0.9), model)
+
+			local eyeGlow = Instance.new("PointLight")
+			eyeGlow.Name = "EyeGlow"
+			eyeGlow.Color = Color3.fromRGB(255, 215, 75)
+			eyeGlow.Brightness = 0.42
+			eyeGlow.Range = 6.5
+			eyeGlow.Shadows = false
+			eyeGlow.Parent = head
+
+			model.PrimaryPart = core
+			model.Parent = parentMap
+
+			isSkinnedRig = true
+			skinnedRoot = root
+			entityCore = core
+			entityHead = head
+			return model
+		else
+			model:Destroy()
+		end
 	end
 
 	local model = Instance.new("Model")
@@ -141,9 +219,21 @@ local function createEntityRig(parentMap: Instance): Model
 end
 
 local function positionRig(baseCF: CFrame, t: number, speed: number)
-	local bob = if speed > 0.1 then math.sin(t * 10) * 0.08 else math.sin(t * 2.2) * 0.03
-	local twitch = if speed > 0.1 then math.sin(t * 12) * 0.28 else 0
+	if isSkinnedRig and skinnedRoot then
+		-- Replicate target pose via attribute so Client EntityAnimator smoothly interpolates
+		-- RootPart.CFrame at 60-144 FPS (avoiding Roblox's choppy 20 Hz Anchored CFrame replication!).
+		local targetRootCF = baseCF * CFrame.new(0, -1.35, 0)
+		entityModel:SetAttribute("TargetRootCF", targetRootCF)
+		entityModel:SetAttribute("MoveSpeed", speed)
+		entityCore.CFrame = baseCF
+		entityHead.CFrame = baseCF * CFrame.new(0, 0.90, -2.60)
+		return
+	end
+
+	local bob = if speed > 0.1 then math.sin(t * 10) * 0.06 else math.sin(t * 2.2) * 0.025
 	local coreCF = baseCF * CFrame.new(0, bob, 0)
+
+	local twitch = if speed > 0.1 then math.sin(t * 12) * 0.28 else 0
 	local headCF = coreCF * CFrame.new(0, 0.22, -1.25) * CFrame.Angles(0, 0, math.sin(t * 3.1) * 0.18)
 
 	entityCore.CFrame = coreCF
@@ -255,21 +345,87 @@ local function getVentPlayers(): { VentPlayerInfo }
 	return list
 end
 
-local function pickLurkTileForPlayer(playerTileKey: string): string
+local function isCornerTile(tile: any): boolean
+	return tile ~= nil and (tile.tileType == "Corner" or tile.tileType == "TJunction" or tile.tileType == "Cross")
+end
+
+-- Check if two tile keys share an unobstructed straight row (gz) or column (gx) sightline
+local function isSameCorridorAxis(tileKeyA: string, tileKeyB: string): boolean
+	local a = MapLayout.getTileByKey(tileKeyA)
+	local b = MapLayout.getTileByKey(tileKeyB)
+	if not a or not b then
+		return false
+	end
+	return a.gx == b.gx or a.gz == b.gz
+end
+
+-- Walk straight down all 4 cardinal corridors from the player's tile (exact row gz / col gx)
+-- to find corners/junctions that look directly down the player's vent shaft!
+local function pickCorridorPeekCorner(playerTileKey: string, excludeTileKey: string?): string
+	local startTile = MapLayout.getTileByKey(playerTileKey)
+	local sightlineCorners: { string } = {}
+
+	if startTile then
+		local dirs = {
+			{ dx = 1, dz = 0 },
+			{ dx = -1, dz = 0 },
+			{ dx = 0, dz = 1 },
+			{ dx = 0, dz = -1 },
+		}
+		for _, d in ipairs(dirs) do
+			local prevKey = playerTileKey
+			local gx, gz = startTile.gx, startTile.gz
+			for step = 1, 6 do
+				gx += d.dx
+				gz += d.dz
+				local nextKey = MapLayout.key(gx, gz)
+				-- Ensure the corridor is actually connected (no wall between prevKey and nextKey)
+				local connected = false
+				for _, nKey in ipairs(MapLayout.getNeighbors(prevKey)) do
+					if nKey == nextKey then
+						connected = true
+						break
+					end
+				end
+				if not connected then
+					break
+				end
+
+				local tile = MapLayout.getTileByKey(nextKey)
+				if tile and nextKey ~= MapLayout.DROP_TILE_KEY and nextKey ~= excludeTileKey and isCornerTile(tile) then
+					table.insert(sightlineCorners, nextKey)
+				end
+				prevKey = nextKey
+			end
+		end
+	end
+
+	-- Prefer the closest straight-corridor peek corner to the entity's current position
+	if #sightlineCorners > 0 then
+		local bestKey = sightlineCorners[1]
+		local bestDist = math.huge
+		local myPos = entityCore.Position
+		for _, k in ipairs(sightlineCorners) do
+			local d = (EntityService.tileKeyToWorld(k) - myPos).Magnitude
+			if d < bestDist then
+				bestDist = d
+				bestKey = k
+			end
+		end
+		return bestKey
+	end
+
+	-- Fallback: BFS 1-2 tiles around player for any corner/junction
 	local queue: { { key: string, depth: number } } = { { key = playerTileKey, depth = 0 } }
 	local visited: { [string]: boolean } = { [playerTileKey] = true }
-	local candidates: { string } = {}
 	local fallback: { string } = {}
 	local idx = 1
-
 	while idx <= #queue do
 		local item = queue[idx]
 		idx += 1
-		if item.depth >= 1 and item.depth <= 2 and item.key ~= MapLayout.DROP_TILE_KEY then
+		if item.depth >= 1 and item.depth <= 2 and item.key ~= MapLayout.DROP_TILE_KEY and item.key ~= excludeTileKey then
 			local tile = MapLayout.getTileByKey(item.key)
-			if tile and (tile.tileType == "Corner" or tile.tileType == "TJunction" or tile.tileType == "Cross") then
-				table.insert(candidates, item.key)
-			else
+			if isCornerTile(tile) then
 				table.insert(fallback, item.key)
 			end
 		end
@@ -282,13 +438,41 @@ local function pickLurkTileForPlayer(playerTileKey: string): string
 			end
 		end
 	end
-
-	if #candidates > 0 then
-		return candidates[math.random(1, #candidates)]
-	elseif #fallback > 0 then
+	if #fallback > 0 then
 		return fallback[math.random(1, #fallback)]
 	end
 	return playerTileKey
+end
+
+-- Find the closest corner/junction tile to scramble into when caught in open LOS
+local function pickClosestCornerForScramble(): string
+	local curTile = MapLayout.getTileByKey(currentTileKey)
+	if isCornerTile(curTile) and currentTileKey ~= MapLayout.DROP_TILE_KEY then
+		return currentTileKey
+	end
+
+	local queue: { { key: string, depth: number } } = { { key = currentTileKey, depth = 0 } }
+	local visited: { [string]: boolean } = { [currentTileKey] = true }
+	local idx = 1
+	while idx <= #queue do
+		local item = queue[idx]
+		idx += 1
+		if item.depth >= 1 and item.key ~= MapLayout.DROP_TILE_KEY then
+			local tile = MapLayout.getTileByKey(item.key)
+			if isCornerTile(tile) then
+				return item.key
+			end
+		end
+		if item.depth < 4 then
+			for _, neighborKey in ipairs(MapLayout.getNeighbors(item.key)) do
+				if not visited[neighborKey] then
+					visited[neighborKey] = true
+					table.insert(queue, { key = neighborKey, depth = item.depth + 1 })
+				end
+			end
+		end
+	end
+	return currentTileKey
 end
 
 local function pickRetreatTile(ventPlayers: { VentPlayerInfo }): string
@@ -368,7 +552,10 @@ local function isPlayerLookingAtEntity(vp: VentPlayerInfo): boolean
 	if toEntity.Magnitude < 0.01 then
 		return true
 	end
-	return vp.head.CFrame.LookVector:Dot(toEntity.Unit) >= GameConfig.Entity.StareDotThreshold
+	local dotThreshold = if aiState == "Lurk"
+		then GameConfig.Entity.PeekSpotDotThreshold
+		else GameConfig.Entity.StareDotThreshold
+	return vp.head.CFrame.LookVector:Dot(toEntity.Unit) >= dotThreshold
 end
 
 local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: number)
@@ -428,6 +615,28 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 		then CFrame.lookAt(corePos, coreLookTarget)
 		else CFrame.new(corePos)
 
+	if isSkinnedRig and skinnedRoot then
+		-- TRUE CORNER-PEEK: Hide entire torso/elbows/legs deep behind the perpendicular wall (sideVec * 3.85),
+		-- oriented outward toward the corner edge so ONLY the extended neck & tilted head peek past the 2.3-stud wall!
+		local peekBodyPos = basePos + sideVec * 3.85 - bestOpenDir * 0.55
+		local outOfCornerDir = (-sideVec * 0.92 + bestOpenDir * 0.39).Unit
+		local bodyCF = CFrame.lookAt(peekBodyPos, peekBodyPos + outOfCornerDir)
+
+		-- Exact monster-relative peek side: +1 = player is to monster's RIGHT (PeekRight), -1 = monster's LEFT (PeekLeft)
+		local peekSideSign = if bodyCF.RightVector:Dot(bestOpenDir) >= 0 then 1 else -1
+
+		entityModel:SetAttribute("TargetRootCF", bodyCF * CFrame.new(0, -1.35, 0))
+		entityModel:SetAttribute("MoveSpeed", 0)
+		entityModel:SetAttribute("LurkSideSign", peekSideSign)
+		entityModel:SetAttribute("LurkTargetPos", playerPos)
+
+		entityCore.CFrame = bodyCF
+		-- Place LOS/stare anchor right where the peeking head emerges past the corner edge
+		local truePeekHeadPos = basePos + sideVec * 1.45 + bestOpenDir * 0.45 + Vector3.new(0, 0.55, 0)
+		entityHead.CFrame = CFrame.lookAt(truePeekHeadPos, Vector3.new(playerPos.X, truePeekHeadPos.Y, playerPos.Z))
+		return
+	end
+
 	entityCore.CFrame = coreCF
 	entityHead.CFrame = headCF
 
@@ -462,12 +671,37 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 	end
 end
 
+local function enterLurk(player: Player?)
+	setState("Lurk")
+	targetPlayer = player or targetPlayer
+	lurkTimer = GameConfig.Entity.LurkMaxDuration
+	unnoticedPeekTimer = 0
+	spottedPeekTimer = 0
+	lurkCorridorLostTimer = 0
+	pathQueue = {}
+	pathIndex = 1
+end
+
+local function enterScrambleToCorner(player: Player)
+	targetPlayer = player
+	unnoticedPeekTimer = 0
+	spottedPeekTimer = 0
+	local cornerKey = pickClosestCornerForScramble()
+	if cornerKey == currentTileKey then
+		enterLurk(player)
+		return
+	end
+	setState("Scramble")
+	setDestination(cornerKey)
+end
+
 local function enterRetreat(ventPlayers: { VentPlayerInfo })
+	lastPeekTileKey = currentTileKey
 	setState("Retreat")
 	targetPlayer = nil
-	stareTimer = 0
-	flinchTimer = 0
-	wasSpotted = false
+	unnoticedPeekTimer = 0
+	spottedPeekTimer = 0
+	lurkCorridorLostTimer = 0
 	local cdScale = if #ventPlayers >= 2 then GameConfig.Entity.MultiplayerRetreatCooldownScale else 1.0
 	retreatCooldownTimer = GameConfig.Entity.RetreatCooldown * cdScale
 	setDestination(pickRetreatTile(ventPlayers))
@@ -476,118 +710,14 @@ end
 local function enterChase(player: Player)
 	setState("Chase")
 	targetPlayer = player
-	stareTimer = 0
-	flinchTimer = 0
-	wasSpotted = false
+	unnoticedPeekTimer = 0
+	spottedPeekTimer = 0
+	lurkCorridorLostTimer = 0
 	chaseLostTimer = 0
 end
 
-function EntityService.tryRepairCornerPeek(player: Player): boolean
-	-- Only teleport-peek when patrolling/stalking (never interrupt Chase, Retreat, or an active Lurk)
-	if aiState ~= "Patrol" and aiState ~= "Stalk" then
-		return false
-	end
-	if player:GetAttribute(NetContracts.Attributes.InSafeRoom) ~= false
-		or player:GetAttribute(NetContracts.Attributes.IsEliminated) == true
-	then
-		return false
-	end
-
-	local now = os.clock()
-	if now - lastRepairPeekTime < GameConfig.Entity.RepairPeekCooldown then
-		return false
-	end
-	if math.random() > GameConfig.Entity.RepairPeekChance then
-		return false
-	end
-
-	local char = player.Character
-	local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
-	local head = if char then char:FindFirstChild("Head") :: BasePart? else nil
-	if not root or not head then
-		return false
-	end
-
-	local ventPlayers = getVentPlayers()
-	activeVentPlayerCount = #ventPlayers
-	-- Never teleport visibly out of thin air while any player is looking at the entity
-	for _, vp in ipairs(ventPlayers) do
-		if isPlayerLookingAtEntity(vp) then
-			return false
-		end
-	end
-
-	local playerTileKey = EntityService.worldToTileKey(root.Position)
-	local frontCorners: { string } = {}
-	local anyLosCorners: { string } = {}
-
-	for _, tile in ipairs(MapLayout.Tiles) do
-		if tile.tileType == "Corner" or tile.tileType == "TJunction" or tile.tileType == "Cross" then
-			local k = MapLayout.key(tile.gx, tile.gz)
-			if k ~= MapLayout.DROP_TILE_KEY and k ~= playerTileKey then
-				local wp = EntityService.tileKeyToWorld(k)
-				local dist = (wp - head.Position).Magnitude
-				if dist >= GameConfig.Entity.RepairPeekMinDist and dist <= GameConfig.Entity.RepairPeekMaxDist then
-					if hasLineOfSightFrom(wp + Vector3.new(0, 0.28, 0), head) then
-						local safeFromTeammates = true
-						for _, vp in ipairs(ventPlayers) do
-							if vp.player ~= player then
-								local d = (wp - vp.root.Position).Magnitude
-								if d <= GameConfig.Entity.AmbushRadius then
-									safeFromTeammates = false
-									break
-								end
-								local toCorner = wp - vp.head.Position
-								if toCorner.Magnitude > 0.01
-									and vp.head.CFrame.LookVector:Dot(toCorner.Unit) >= 0.70
-									and hasLineOfSightFrom(wp + Vector3.new(0, 0.28, 0), vp.head)
-								then
-									safeFromTeammates = false
-									break
-								end
-							end
-						end
-
-						if safeFromTeammates then
-							local toCorner = wp - head.Position
-							if toCorner.Magnitude > 0.01 and head.CFrame.LookVector:Dot(toCorner.Unit) >= 0.15 then
-								table.insert(frontCorners, k)
-							else
-								table.insert(anyLosCorners, k)
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-
-	local chosenKey: string? = nil
-	if #frontCorners > 0 then
-		chosenKey = frontCorners[math.random(1, #frontCorners)]
-	elseif #anyLosCorners > 0 then
-		chosenKey = anyLosCorners[math.random(1, #anyLosCorners)]
-	end
-	if not chosenKey then
-		return false
-	end
-
-	lastRepairPeekTime = now
-	currentTileKey = chosenKey
-	pathQueue = {}
-	pathIndex = 1
-	targetPlayer = player
-	stareTimer = 0
-	flinchTimer = 0
-	wasSpotted = false
-	lurkTimer = GameConfig.Entity.LurkDuration
-	setState("Lurk")
-	positionLurkPeekRig(EntityService.tileKeyToWorld(chosenKey), root.Position, now)
-	return true
-end
-
 function EntityService.alertNoise(worldPos: Vector3, radius: number, sourcePlayer: Player?, isHighPriority: boolean?)
-	if aiState == "Chase" or aiState == "Retreat" then
+	if aiState == "Chase" or aiState == "Retreat" or aiState == "Scramble" then
 		return
 	end
 	local dist = (entityCore.Position - worldPos).Magnitude
@@ -603,10 +733,10 @@ function EntityService.alertNoise(worldPos: Vector3, radius: number, sourcePlaye
 		if (aiState == "Patrol" or (isHighPriority and aiState == "Lurk")) and (retreatCooldownTimer <= 0 or isHighPriority) then
 			setState("Stalk")
 			targetPlayer = sourcePlayer or targetPlayer
-			stareTimer = 0
-			wasSpotted = false
+			unnoticedPeekTimer = 0
+			spottedPeekTimer = 0
 		end
-		setDestination(if isHighPriority then goalKey else pickLurkTileForPlayer(goalKey))
+		setDestination(if isHighPriority then goalKey else pickCorridorPeekCorner(goalKey, lastPeekTileKey))
 	end
 end
 
@@ -651,8 +781,9 @@ local function updateDetectionAndElimination(dt: number)
 				hum.Health = 0
 			end
 			targetPlayer = nil
-			stareTimer = 0
-			wasSpotted = false
+			unnoticedPeekTimer = 0
+			spottedPeekTimer = 0
+			lurkCorridorLostTimer = 0
 			setState("Patrol")
 			setDestination(pickPatrolDestination())
 			if onPlayerEliminatedCallback then
@@ -662,8 +793,8 @@ local function updateDetectionAndElimination(dt: number)
 		end
 	end
 
-	-- 2. Retreat is non-interruptible until it reaches its distant tile
-	if aiState == "Retreat" then
+	-- 2. Retreat and Scramble are non-interruptible until they reach their corner tile
+	if aiState == "Retreat" or aiState == "Scramble" then
 		return
 	end
 
@@ -697,13 +828,17 @@ local function updateDetectionAndElimination(dt: number)
 		return
 	end
 
-	-- 4. Multiplayer Ambush & Stare checks (Patrol / Stalk / Lurk)
+	-- 4. Sense nearby vent players & detect LOS / spotted status
 	local closestVP: VentPlayerInfo? = nil
 	local closestDist = math.huge
 	local spottedBy: VentPlayerInfo? = nil
 	local spottedDist = math.huge
+	local targetVP: VentPlayerInfo? = nil
 
 	for _, vp in ipairs(ventPlayers) do
+		if vp.player == targetPlayer then
+			targetVP = vp
+		end
 		if vp.dist < closestDist then
 			closestDist = vp.dist
 			closestVP = vp
@@ -718,74 +853,112 @@ local function updateDetectionAndElimination(dt: number)
 		end
 	end
 
-	if aiState == "Stalk" or aiState == "Lurk" then
+	-- 5. LURK (Persistent Corridor Corner-Peek + Unnoticed-Peek Ambush!)
+	if aiState == "Lurk" then
+		local focusVP = targetVP or closestVP
+		if not focusVP then
+			setState("Patrol")
+			targetPlayer = nil
+			setDestination(pickPatrolDestination())
+			return
+		end
+		targetPlayer = focusVP.player
+
+		-- Player spotted the peeking head in time -> tense 0.5s stare-down, then whip back & reposition!
 		if spottedBy then
-			wasSpotted = true
-			local isCorneredOrClose = spottedBy.dist <= GameConfig.Entity.CloseStareRange or retreatCooldownTimer > 0
-			if isCorneredOrClose then
-				stareTimer += dt
-				if stareTimer >= GameConfig.Entity.StareMaxDuration then
-					enterChase(spottedBy.player)
-					return
-				end
-			else
-				-- Medium/far range fresh spot: brief flinch beat then whip back & sprint to a blind corner!
-				flinchTimer += dt
-				local flinchDelay = if spottedBy.headlampOn
-					then GameConfig.Entity.FlinchDelayLightOn
-					else GameConfig.Entity.FlinchDelayDark
-				if flinchTimer >= flinchDelay then
-					enterRetreat(ventPlayers)
-					return
-				end
-			end
-		else
-			if wasSpotted then
+			unnoticedPeekTimer = 0
+			spottedPeekTimer += dt
+			if spottedPeekTimer >= GameConfig.Entity.SpottedPeekFlinchDuration then
 				enterRetreat(ventPlayers)
 				return
 			end
-			stareTimer = math.max(0, stareTimer - dt * 0.5)
-			flinchTimer = 0
-		end
+		else
+			spottedPeekTimer = math.max(0, spottedPeekTimer - dt * 2.0)
 
-		if aiState == "Lurk" then
-			lurkTimer -= dt
-			if lurkTimer <= 0 then
-				setState("Patrol")
-				targetPlayer = nil
-				setDestination(pickPatrolDestination())
+			-- Check if the target player is still in our corridor row/column or direct LOS
+			local playerTileKey = EntityService.worldToTileKey(focusVP.root.Position)
+			local inCorridor = isSameCorridorAxis(currentTileKey, playerTileKey)
+				or hasLineOfSight(focusVP.head)
+
+			if inCorridor then
+				lurkCorridorLostTimer = 0
+				-- UNNOTICED PEEK ESCALATION: if player ignores the peeking corner for ~5s -> ATTACK!
+				unnoticedPeekTimer += dt
+				if unnoticedPeekTimer >= GameConfig.Entity.UnnoticedPeekAttackDuration then
+					enterChase(focusVP.player)
+					setDestination(playerTileKey)
+					return
+				end
+			else
+				-- Player left our vent row/column -> re-stalk a new corner on their new row/column!
+				unnoticedPeekTimer = math.max(0, unnoticedPeekTimer - dt)
+				lurkCorridorLostTimer += dt
+				if lurkCorridorLostTimer >= GameConfig.Entity.LurkCorridorLostTimeout then
+					setState("Stalk")
+					setDestination(pickCorridorPeekCorner(playerTileKey, currentTileKey))
+					return
+				end
 			end
 		end
-	elseif aiState == "Patrol" then
+
+		lurkTimer -= dt
+		if lurkTimer <= 0 then
+			local playerTileKey = EntityService.worldToTileKey(focusVP.root.Position)
+			setState("Stalk")
+			setDestination(pickCorridorPeekCorner(playerTileKey, currentTileKey))
+		end
+		return
+	end
+
+	-- 6. STALK (Row/Column Sightline Corner Hunter)
+	if aiState == "Stalk" then
+		-- Caught in open LOS while stalking -> bolt straight to the CLOSEST corner and peek back!
 		if spottedBy then
 			if spottedBy.dist <= GameConfig.Entity.AmbushRadius then
 				enterChase(spottedBy.player)
-				return
-			elseif spottedBy.dist <= GameConfig.Entity.CloseStareRange then
-				wasSpotted = true
-				stareTimer = 0
-				flinchTimer = 0
-				setState("Lurk")
-				targetPlayer = spottedBy.player
-				lurkTimer = GameConfig.Entity.LurkDuration
-				pathQueue = {}
-				pathIndex = 1
 			else
-				-- Caught patrolling down a corridor: immediately whip away to a blind corner!
-				enterRetreat(ventPlayers)
-				return
+				enterScrambleToCorner(spottedBy.player)
 			end
+			return
+		end
+
+		local focusVP = targetVP or closestVP
+		if focusVP then
+			targetPlayer = focusVP.player
+			-- If player moved off the row/column we're heading toward, smoothly re-aim for a corner on their new row/col
+			local playerTileKey = EntityService.worldToTileKey(focusVP.root.Position)
+			local destKey = pathQueue[#pathQueue]
+			if not destKey or not isSameCorridorAxis(destKey, playerTileKey) then
+				setDestination(pickCorridorPeekCorner(playerTileKey, lastPeekTileKey))
+			end
+		else
+			setState("Patrol")
+			targetPlayer = nil
+			setDestination(pickPatrolDestination())
+		end
+		return
+	end
+
+	-- 7. PATROL (Prioritizes entering Stalk/Lurk when players are in the vents; scrambles to closest corner if spotted!)
+	if aiState == "Patrol" then
+		if spottedBy then
+			if spottedBy.dist <= GameConfig.Entity.AmbushRadius then
+				enterChase(spottedBy.player)
+			else
+				-- Caught in open LOS -> scramble at high speed to closest corner & immediately peek back!
+				enterScrambleToCorner(spottedBy.player)
+			end
+			return
 		elseif closestVP then
 			local acquireRange = GameConfig.Entity.StalkAcquireRange
 				+ (if #ventPlayers >= 2 then GameConfig.Entity.MultiplayerAcquireRangeBonus else 0)
 			if closestDist <= acquireRange and retreatCooldownTimer <= 0 then
 				setState("Stalk")
 				targetPlayer = closestVP.player
-				stareTimer = 0
-				flinchTimer = 0
-				wasSpotted = false
+				unnoticedPeekTimer = 0
+				spottedPeekTimer = 0
 				local playerTile = EntityService.worldToTileKey(closestVP.root.Position)
-				setDestination(pickLurkTileForPlayer(playerTile))
+				setDestination(pickCorridorPeekCorner(playerTile, lastPeekTileKey))
 			end
 		end
 	end
@@ -847,35 +1020,26 @@ local function stepMovement(dt: number)
 		return
 	end
 
-	-- Freeze in place while spotted in Stalk (tense eye-contact beat before Retreat or Chase)
-	if aiState == "Stalk" and wasSpotted then
-		local currentPos = entityCore.Position
-		local targetRoot = if targetPlayer and targetPlayer.Character
-			then targetPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			else nil
-		if targetRoot then
-			local lookTarget = Vector3.new(targetRoot.Position.X, currentPos.Y, targetRoot.Position.Z)
-			if (lookTarget - currentPos).Magnitude > 0.05 then
-				positionRig(CFrame.lookAt(currentPos, lookTarget), os.clock(), 0)
-				return
-			end
-		end
-		positionRig(entityCore.CFrame, os.clock(), 0)
-		return
-	end
-
 	local targetTile = pathQueue[pathIndex]
 	if not targetTile then
 		if aiState == "Patrol" then
 			setDestination(pickPatrolDestination())
 			targetTile = pathQueue[pathIndex]
 		elseif aiState == "Retreat" then
-			setState("Patrol")
-			setDestination(pickPatrolDestination())
+			-- Immediately resume stalking a fresh row/col corner if players are in the vents!
+			local vps = getVentPlayers()
+			if #vps > 0 then
+				setState("Stalk")
+				targetPlayer = vps[1].player
+				local pTile = EntityService.worldToTileKey(vps[1].root.Position)
+				setDestination(pickCorridorPeekCorner(pTile, lastPeekTileKey))
+			else
+				setState("Patrol")
+				setDestination(pickPatrolDestination())
+			end
 			targetTile = pathQueue[pathIndex]
-		elseif aiState == "Stalk" then
-			setState("Lurk")
-			lurkTimer = GameConfig.Entity.LurkDuration
+		elseif aiState == "Stalk" or aiState == "Scramble" then
+			enterLurk(targetPlayer)
 			return
 		end
 	end
@@ -884,6 +1048,8 @@ local function stepMovement(dt: number)
 		+ (if activeVentPlayerCount >= 2 then GameConfig.Entity.MultiplayerStalkSpeedBonus else 0)
 	local moveSpeed = if aiState == "Retreat"
 		then GameConfig.Entity.RetreatSpeed
+		elseif aiState == "Scramble"
+		then GameConfig.Entity.ScrambleSpeed
 		elseif aiState == "Chase"
 		then activeProfile.chaseCadence * 5.2 -- ~9.62 studs/s (faster than 8.4 fast-crawl on straightaways)
 		elseif aiState == "Stalk"
@@ -896,28 +1062,47 @@ local function stepMovement(dt: number)
 		local delta = Vector3.new(wp.X - currentPos.X, 0, wp.Z - currentPos.Z)
 		local dist = delta.Magnitude
 
-		if dist <= 0.35 then
+		-- Advance immediately to next tile without a 1-frame speed=0 hiccup!
+		if dist <= 0.45 then
 			currentTileKey = targetTile
 			pathIndex += 1
 			if pathIndex > #pathQueue then
 				if aiState == "Patrol" then
 					setDestination(pickPatrolDestination())
-				elseif aiState == "Stalk" then
-					setState("Lurk")
-					lurkTimer = GameConfig.Entity.LurkDuration
-					pathQueue = {}
-					pathIndex = 1
+				elseif aiState == "Stalk" or aiState == "Scramble" then
+					enterLurk(targetPlayer)
+					return
 				elseif aiState == "Retreat" then
-					setState("Patrol")
-					setDestination(pickPatrolDestination())
+					local vps = getVentPlayers()
+					if #vps > 0 then
+						setState("Stalk")
+						targetPlayer = vps[1].player
+						local pTile = EntityService.worldToTileKey(vps[1].root.Position)
+						setDestination(pickCorridorPeekCorner(pTile, lastPeekTileKey))
+					else
+						setState("Patrol")
+						setDestination(pickPatrolDestination())
+					end
 				end
 			end
-			positionRig(entityCore.CFrame, os.clock(), 0)
-		else
+			targetTile = pathQueue[pathIndex]
+			if targetTile then
+				wp = EntityService.tileKeyToWorld(targetTile)
+				delta = Vector3.new(wp.X - currentPos.X, 0, wp.Z - currentPos.Z)
+				dist = delta.Magnitude
+			end
+		end
+
+		if targetTile and dist > 0.01 then
 			local stepDist = math.min(dist, moveSpeed * dt)
 			local nextPos = currentPos + delta.Unit * stepDist
-			local lookCF = CFrame.lookAt(nextPos, nextPos + delta.Unit)
-			positionRig(lookCF, os.clock(), moveSpeed)
+			local desiredLook = CFrame.lookAt(nextPos, nextPos + delta.Unit)
+			-- Smoothly turn around corners instead of snapping 90 deg in 1 frame
+			local turnAlpha = 1 - math.exp(-10 * dt)
+			local smoothRot = entityCore.CFrame.Rotation:Lerp(desiredLook.Rotation, turnAlpha)
+			positionRig(CFrame.new(nextPos) * smoothRot, os.clock(), moveSpeed)
+		else
+			positionRig(entityCore.CFrame, os.clock(), 0)
 		end
 	else
 		positionRig(entityCore.CFrame, os.clock(), 0)
