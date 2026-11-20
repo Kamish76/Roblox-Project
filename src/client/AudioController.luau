@@ -781,8 +781,8 @@ function AudioController.init()
 							entityChaseShoutSound,
 							GameConfig.Audio.EntityChaseShoutId,
 							GameConfig.Audio.ChaseShoutVolume,
-							0.86,
-							1.02
+							1.02,
+							1.16
 						)
 					end
 					nextChaseShoutTime = now + randRange(GameConfig.Audio.ChaseShoutIntervalMin, GameConfig.Audio.ChaseShoutIntervalMax)
@@ -795,7 +795,7 @@ function AudioController.init()
 				nextChaseShoutTime = now + randRange(GameConfig.Audio.ChaseShoutIntervalMin, GameConfig.Audio.ChaseShoutIntervalMax)
 				if entityChaseShoutSound and not entityChaseShoutSound.IsPlaying and entityDist <= GameConfig.Audio.EntityChaseShoutMaxDistance then
 					local shoutVol = GameConfig.Audio.ChaseShoutVolume * randRange(0.80, 1.0)
-					playOneShot(entityChaseShoutSound, GameConfig.Audio.EntityChaseShoutId, shoutVol, 0.84, 1.06)
+					playOneShot(entityChaseShoutSound, GameConfig.Audio.EntityChaseShoutId, shoutVol, 1.00, 1.18)
 				end
 			end
 
