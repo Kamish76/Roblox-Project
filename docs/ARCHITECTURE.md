@@ -34,7 +34,7 @@ All parent services use `"$ignoreUnknownInstances": true`:
 * [src/client/HeadlampController.luau](../src/client/HeadlampController.luau) — Camera-tracked `SpotLight` rig, `[F]` toggle, proximity flicker, and co-op teammate beams (`[Exists]`)
 * [src/client/PanicController.luau](../src/client/PanicController.luau) — Stale Air / Panic HUD bar, pulsing edge vignette & rate-limited `Crawl` noise emitter (`[Exists]`)
 * [src/client/SafeRoomUI.luau](../src/client/SafeRoomUI.luau) — Live Work Order HUD, faulted sector display, Sign-Off outcome banner, ScareFlash overlay & `[Tab]` squad spectate (`[Exists]`)
-* [src/client/AudioController.luau](../src/client/AudioController.luau) — 3-layer spatial audio controller (`EntityScrape`, `FaultHum`, `AmbientCreak`, `PanicGasp`, `HeadlampClick`, `ScareSting`) (`[Exists]`)
+* [src/client/AudioController.luau](../src/client/AudioController.luau) — Psychological spatial audio controller (`VentDuctGroup`/`EntityAudioGroup` dynamic occlusion EQ/`SubliminalTensionGroup`/`SafeRoomGroup`, dead-silent `Lurk` + cadenced limb foley + `EntityJointCrack`/`EntityWetShift`/`EntityLurkExhale`/`EntityWhisper`/`EntityStartleSlap`/`EntityTendonSnap`, pre-cue room-tone vacuum, 3D blind-spot `PhantomAudioAnchor`, tension ducking + `TensionDrone`/`Heartbeat`, `RepairSpark` & `FlickerBuzz`) (`[Exists]`)
 
 ### Planned Module Topology (Target Architecture)
 *(Items marked `[Exists]` shipped in M1–M5; **v0.1 MVP vertical slice complete**.)*
@@ -60,7 +60,7 @@ src/
     ├── HeadlampController.luau [Exists] Camera-tracked SpotLight rig, [F] toggle, proximity flicker & teammate beams
     ├── PanicController.luau  [Exists]  Stale Air / Panic HUD, pulsing vignette & Crawl noise emitter
     ├── SafeRoomUI.luau       [Exists]  Work Order HUD, extraction/wipe banner, ScareFlash & [Tab] squad spectate
-    ├── AudioController.luau  [Exists]  3-layer spatial Sound emitters (EntityScrape, FaultHum, AmbientCreak/Click/Gasp/Sting)
+    ├── AudioController.luau  [Exists]  DSP SoundGroup buses, uncanny entity tells, 3D blind-spot phantom ambience & tension ducking
     └── EntityAnimator.luau   [Exists]  60 FPS client-side 23-bone procedural skinned-mesh animator (Patrol/Stalk/Lurk/Chase/Retreat)
 ```
 

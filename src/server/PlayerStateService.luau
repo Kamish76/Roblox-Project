@@ -215,7 +215,14 @@ local function wireDropShaftPrompts()
 		return
 	end
 
+	local boundPrompts: { [ProximityPrompt]: boolean } = {}
+	local hasClimbPrompt = false
+
 	local function bindPrompt(prompt: ProximityPrompt, toVents: boolean)
+		if boundPrompts[prompt] then
+			return
+		end
+		boundPrompts[prompt] = true
 		prompt.Triggered:Connect(function(player: Player)
 			local now = os.clock()
 			if now - (stanceTimestamps[player] or 0) < STANCE_COOLDOWN then
@@ -236,6 +243,7 @@ local function wireDropShaftPrompts()
 			if inst.Name == "DropToVents" then
 				bindPrompt(inst, true)
 			elseif inst.Name == "ClimbToSafeRoom" then
+				hasClimbPrompt = true
 				bindPrompt(inst, false)
 			end
 		end
@@ -245,6 +253,42 @@ local function wireDropShaftPrompts()
 		checkInstance(desc)
 	end
 	ventMap.DescendantAdded:Connect(checkInstance)
+
+	-- Self-heal: if VentMap was rebuilt without ClimbToSafeRoom on Tile_0_0, create & bind it automatically.
+	if not hasClimbPrompt then
+		local tiles = ventMap:FindFirstChild("VentTiles")
+		local dropTile = if tiles then tiles:FindFirstChild("Tile_0_0") else nil
+		local floor = if dropTile then dropTile:FindFirstChild("Floor") else nil
+		if dropTile and floor and floor:IsA("BasePart") then
+			local anchor = dropTile:FindFirstChild("ClimbAnchor") :: BasePart?
+			if not anchor then
+				local p = Instance.new("Part")
+				p.Name = "ClimbAnchor"
+				p.Size = Vector3.new(2, 1, 2)
+				p.Transparency = 1
+				p.Anchored = true
+				p.CanCollide = false
+				p.CanQuery = false
+				p.CanTouch = false
+				p.CastShadow = false
+				p.Position = Vector3.new(floor.Position.X, floor.Position.Y + floor.Size.Y / 2 + 2.4, floor.Position.Z)
+				p.Parent = dropTile
+				anchor = p
+			end
+			if anchor then
+				local prompt = Instance.new("ProximityPrompt")
+				prompt.Name = "ClimbToSafeRoom"
+				prompt.ActionText = "Climb to Safe Room"
+				prompt.ObjectText = "Vent Hatch"
+				prompt.KeyboardKeyCode = Enum.KeyCode.E
+				prompt.HoldDuration = 0.45
+				prompt.MaxActivationDistance = 7.5
+				prompt.RequiresLineOfSight = false
+				prompt.Parent = anchor
+				bindPrompt(prompt, false)
+			end
+		end
+	end
 end
 
 function PlayerStateService.init()

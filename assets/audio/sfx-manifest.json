@@ -11,15 +11,67 @@
       "robloxSource": "ProSoundEffects — Metal Creaks Destroying A Car Scraping Drags 1",
       "freesoundCc0Candidate": { "id": 462276, "name": "Fabric sliding through metal duct (Contact mic)" }
     },
+    "EntityJointCrackId": {
+      "robloxAssetId": "rbxassetid://9113542363",
+      "robloxSource": "ProSoundEffects — Bone Cracks 10 (SFX) (Dry, Grainy)"
+    },
+    "EntityWetShiftId": {
+      "robloxAssetId": "rbxassetid://9119559518",
+      "robloxSource": "ProSoundEffects — Squishy Bone Cracks 5 (SFX) (Wet Ligament Shift)"
+    },
+    "EntityLurkExhaleId": {
+      "robloxAssetId": "rbxassetid://9043349874",
+      "robloxSource": "APMOfficial — HORROR BREATH OUT 03 (Epic Score Horror Tools)"
+    },
+    "EntityWhisperId": {
+      "robloxAssetId": "rbxassetid://85064677546638",
+      "robloxSource": "Creator Store — Horror Sound Effect - Voices (Whispers) (Headlamp-triggered Lurk/Stalk cue)"
+    },
+    "EntityLimbSlideId": {
+      "robloxAssetId": "rbxassetid://9125408271",
+      "robloxSource": "ProSoundEffects — Brush Scrub Rubbing On Leather Seat Cushion 2 (SFX) (MoveSpeed-synced crawl friction)"
+    },
+    "EntityLimbThudId": {
+      "robloxAssetId": "rbxassetid://9116894831",
+      "robloxSource": "ProSoundEffects — Metal Thumps 11 (SFX) (MoveSpeed-synced limb duct flex)"
+    },
+    "EntityStartleSlapId": {
+      "robloxAssetId": "rbxassetid://9116635546",
+      "robloxSource": "ProSoundEffects — Metal Grate Movement With Chain Rattling 2 (SFX) (Scramble/Retreat startle burst)"
+    },
+    "EntityTendonSnapId": {
+      "robloxAssetId": "rbxassetid://9125405388",
+      "robloxSource": "ProSoundEffects — Bow Stretches Wood Creaking Ripping Tearing 5 (SFX) (Scramble/Retreat whip-back snap)"
+    },
     "FaultHumId": {
       "robloxAssetId": "rbxassetid://110483919798635",
       "robloxSource": "BallastHumMedium2",
       "freesoundCc0Candidate": { "id": 637544, "name": "fluorescent light hum buzz4.flac" }
     },
+    "RepairSparkId": {
+      "robloxAssetId": "rbxassetid://9117070094",
+      "robloxSource": "ProSoundEffects — Neon Zaps Broken Intermittent Lights 4 (SFX)"
+    },
+    "FlickerBuzzId": {
+      "robloxAssetId": "rbxassetid://9117070094",
+      "robloxSource": "ProSoundEffects — Neon Zaps Broken Intermittent Lights 4 (SFX)"
+    },
     "AmbientCreakId": {
       "robloxAssetId": "rbxassetid://9125666441",
       "robloxSource": "ProSoundEffects — Metal Creaks Destroying A Car Scraping Drags 3",
       "freesoundCc0Candidate": { "id": 718442, "name": "Metal_Hatch_Small_Fumble_Close_01" }
+    },
+    "PhantomGroanId": {
+      "robloxAssetId": "rbxassetid://9125667610",
+      "robloxSource": "ProSoundEffects — Metal Duct Groan Deep Humming Creaks Clatter 2 (SFX)"
+    },
+    "PhantomKnockId": {
+      "robloxAssetId": "rbxassetid://9116894831",
+      "robloxSource": "ProSoundEffects — Metal Thumps 11 (SFX) (Hollow Sheet-Metal Settling Knock)"
+    },
+    "HatchThumpId": {
+      "robloxAssetId": "rbxassetid://9116894831",
+      "robloxSource": "ProSoundEffects — Metal Thumps 11 (SFX) (Safe Room <-> Vent Hatch Transition)"
     },
     "HeadlampClickId": {
       "robloxAssetId": "rbxassetid://9114480271",
@@ -33,7 +85,7 @@
     },
     "ScareStingId": {
       "robloxAssetId": "rbxassetid://1841353939",
-      "robloxSource": "APMOfficial — Rising Fear Hit 3"
+      "robloxSource": "APMOfficial — Rising Fear Hit 3 (Restrained Volume = 0.52)"
     },
     "CrawlScrapeId": {
       "robloxAssetId": "rbxassetid://9113757109",
@@ -47,6 +99,18 @@
     "VentAmbienceId": {
       "robloxAssetId": "rbxassetid://9112839813",
       "robloxSource": "ProSoundEffects — Oil Refinery Ambience 1 (Industrial Machine Hum Loop)"
+    },
+    "SafeRoomHumId": {
+      "robloxAssetId": "rbxassetid://4227579935",
+      "robloxSource": "Creator Store — Fluorescent Light Hum (LOOPS) (Safe Room Contrast Tone)"
+    },
+    "TensionDroneId": {
+      "robloxAssetId": "rbxassetid://9043359885",
+      "robloxSource": "APMOfficial — DARK DRONE 13 (Subliminal Proximity Dread Bed)"
+    },
+    "HeartbeatId": {
+      "robloxAssetId": "rbxassetid://9043365842",
+      "robloxSource": "APMOfficial — HEARTBEAT 02 96BPM (Low-Passed Internal Pulse)"
     }
   }
 }
