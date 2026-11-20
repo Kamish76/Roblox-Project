@@ -552,7 +552,10 @@ local function isPlayerLookingAtEntity(vp: VentPlayerInfo): boolean
 	if toEntity.Magnitude < 0.01 then
 		return true
 	end
-	return vp.head.CFrame.LookVector:Dot(toEntity.Unit) >= GameConfig.Entity.StareDotThreshold
+	local dotThreshold = if aiState == "Lurk"
+		then GameConfig.Entity.PeekSpotDotThreshold
+		else GameConfig.Entity.StareDotThreshold
+	return vp.head.CFrame.LookVector:Dot(toEntity.Unit) >= dotThreshold
 end
 
 local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: number)
