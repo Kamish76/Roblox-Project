@@ -3,11 +3,16 @@
 	Client psychological spatial audio & acoustic atmosphere controller:
 	1. DSP SoundGroup architecture:
 	   - VentDuctGroup: metallic sheet-metal reverb + resonant EQ for spatial duct realism
+	   - EntityAudioGroup: dedicated creature bus with dynamic distance + wall-occlusion low-pass EQ
 	   - SubliminalTensionGroup: dry, low-passed internal dread bed + muffled heartbeat
 	   - SafeRoomGroup: warm, grounded overhead fluorescent room tone for acoustic contrast
 	2. Uncanny multi-layer Entity audio (JointCracker):
 	   - Movement & state-gated EntityScrape (dead-silent in Lurk so silence becomes the tell)
-	   - Intermittent dry EntityJointCrack, close-range EntityWetShift & hushed EntityLurkExhale
+	   - Cadenced MoveSpeed-synced limb foley (EntityLimbSlide + EntityLimbThud)
+	   - Intermittent dry EntityJointCrack, close-range EntityWetShift & studio EntityLurkExhale
+	   - Headlamp-triggered faint EntityWhisper ("turn it off...") when lurking/stalking nearby
+	   - Spotted/whip-back startle burst (EntityStartleSlap + EntityTendonSnap) on Scramble/Retreat
+	   - Pre-cue Room Tone Vacuum briefly dips VentAmbience before close creature micro-cues
 	3. 3D Blind-Spot Phantom Ambience (Workspace._LocalClientVFX.PhantomAudioAnchor):
 	   - Spawns ambiguous thermal duct groans/knocks/creaks 18–36 studs behind/flanking the camera
 	   - Automatically pauses when entity is close (<18 studs) or chasing so real tells stay readable
@@ -36,8 +41,10 @@ local activeProfile = EntityProfiles.getActiveProfile()
 local localPlayer = Players.LocalPlayer
 local initialized = false
 
--- DSP SoundGroups
+-- DSP SoundGroups & live filter references
 local ventDuctGroup: SoundGroup? = nil
+local entityAudioGroup: SoundGroup? = nil
+local entityOcclusionEq: EqualizerSoundEffect? = nil
 local subliminalGroup: SoundGroup? = nil
 local safeRoomGroup: SoundGroup? = nil
 
@@ -46,10 +53,24 @@ local entityScrapeSound: Sound? = nil
 local entityJointCrackSound: Sound? = nil
 local entityWetShiftSound: Sound? = nil
 local entityLurkExhaleSound: Sound? = nil
+local entityWhisperSound: Sound? = nil
+local entityLimbSlideSound: Sound? = nil
+local entityLimbThudSound: Sound? = nil
+local entityStartleSlapSound: Sound? = nil
+local entityTendonSnapSound: Sound? = nil
+
+-- Entity cadence & occlusion state
 local lastEntityState = ""
 local nextJointCrackTime = os.clock() + 4.0
 local nextWetShiftTime = os.clock() + 6.5
 local nextLurkExhaleTime = os.clock() + 5.0
+local nextWhisperTime = os.clock() + 10.0
+local limbStepAccumulator = 0.0
+local nextLimbStepDistance = 2.6
+local limbStepToggle = false
+local lastOcclusionCheck = 0.0
+local entityIsOccluded = true
+local snippetTokens: { [Sound]: number } = {}
 
 -- World repair node sounds
 local faultHumSounds: { [Model]: Sound } = {}
@@ -61,7 +82,6 @@ local phantomGroanSound: Sound? = nil
 local phantomKnockSound: Sound? = nil
 local phantomCreakSound: Sound? = nil
 local nextPhantomTime = os.clock() + 11.0
-local phantomStopToken = 0
 
 -- Local / internal psychological sounds
 local ventAmbienceSound: Sound? = nil
@@ -78,6 +98,7 @@ local stingSound: Sound? = nil
 
 -- Runtime smoothing & timers
 local currentTension = 0.0
+local roomToneVacuumUntil = 0.0
 local wasInVents: boolean? = nil
 local lastGaspPlay = 0
 local lastCrawlAudioPlay = 0
@@ -117,6 +138,58 @@ local function createSound(
 	return s
 end
 
+local function playOneShot(sound: Sound?, soundId: string, volume: number, speedMin: number, speedMax: number)
+	if not sound or soundId == "" then
+		return
+	end
+	sound.Volume = volume
+	sound.PlaybackSpeed = randRange(speedMin, speedMax)
+	sound.TimePosition = 0
+	sound:Play()
+end
+
+local function playFadeSnippet(
+	sound: Sound?,
+	soundId: string,
+	volume: number,
+	speedMin: number,
+	speedMax: number,
+	startMin: number,
+	startMax: number,
+	durationMin: number,
+	durationMax: number
+)
+	if not sound or soundId == "" then
+		return
+	end
+	local token = (snippetTokens[sound] or 0) + 1
+	snippetTokens[sound] = token
+
+	sound:Stop()
+	sound.PlaybackSpeed = randRange(speedMin, speedMax)
+	sound.Volume = volume
+	sound.TimePosition = if startMax > startMin then randRange(startMin, startMax) else startMin
+	sound:Play()
+
+	local dur = randRange(durationMin, durationMax)
+	task.delay(dur, function()
+		if snippetTokens[sound] ~= token or not sound.Parent then
+			return
+		end
+		local startVol = sound.Volume
+		for i = 1, 6 do
+			if snippetTokens[sound] ~= token or not sound.Parent then
+				return
+			end
+			sound.Volume = startVol * (1 - i / 6)
+			task.wait(0.08)
+		end
+		if snippetTokens[sound] == token and sound.Parent then
+			sound:Stop()
+		end
+	end)
+end
+
 local function setupDspBuses()
 	local existingVent = SoundService:FindFirstChild("VentDuctGroup")
 	if existingVent then
@@ -143,6 +216,33 @@ local function setupDspBuses()
 	ductEq.HighGain = -3.5
 	ductEq.Parent = vGroup
 	ventDuctGroup = vGroup
+
+	local existingEnt = SoundService:FindFirstChild("EntityAudioGroup")
+	if existingEnt then
+		existingEnt:Destroy()
+	end
+	local eGroup = Instance.new("SoundGroup")
+	eGroup.Name = "EntityAudioGroup"
+	eGroup.Volume = 1.0
+	eGroup.Parent = SoundService
+
+	local entReverb = Instance.new("ReverbSoundEffect")
+	entReverb.Name = "EntityDuctReverb"
+	entReverb.DecayTime = 1.25
+	entReverb.Density = 0.88
+	entReverb.Diffusion = 0.72
+	entReverb.DryLevel = 0
+	entReverb.WetLevel = -8
+	entReverb.Parent = eGroup
+
+	local entEq = Instance.new("EqualizerSoundEffect")
+	entEq.Name = "EntityOcclusionEQ"
+	entEq.LowGain = 0.5
+	entEq.MidGain = -1.0
+	entEq.HighGain = -12.0
+	entEq.Parent = eGroup
+	entityAudioGroup = eGroup
+	entityOcclusionEq = entEq
 
 	local existingSub = SoundService:FindFirstChild("SubliminalTensionGroup")
 	if existingSub then
@@ -242,7 +342,6 @@ local function triggerBlindSpotPhantomCue(camera: Camera)
 		return
 	end
 
-	-- Position 18..36 studs behind or flanking the player's blind spot
 	local camPos = camera.CFrame.Position
 	local lookFlat = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
 	if lookFlat.Magnitude < 0.01 then
@@ -251,7 +350,7 @@ local function triggerBlindSpotPhantomCue(camera: Camera)
 		lookFlat = lookFlat.Unit
 	end
 
-	-- Angle in [105°, 255°] behind the camera look vector (never directly in front)
+	-- Position 18..36 studs behind or flanking the player's blind spot [105°, 255°]
 	local blindAngle = math.rad(randRange(105, 255))
 	local cosA = math.cos(blindAngle)
 	local sinA = math.sin(blindAngle)
@@ -266,48 +365,22 @@ local function triggerBlindSpotPhantomCue(camera: Camera)
 	phantomAnchor.CFrame = CFrame.new(camPos + dir * dist + Vector3.new(0, yJitter, 0))
 
 	local roll = math.random()
-	if roll < 0.42 and phantomGroanSound and GameConfig.Audio.PhantomGroanId ~= "" then
-		-- Play a short, eerie thermal duct flex snippet from the 17.9s metal duct groan
-		local s = phantomGroanSound
-		phantomStopToken += 1
-		local token = phantomStopToken
-		s:Stop()
-		s.PlaybackSpeed = randRange(0.76, 0.96)
-		s.Volume = randRange(0.13, 0.21)
-		s.TimePosition = randRange(0, 11.5)
-		s:Play()
-		local snippetDuration = randRange(2.2, 3.8)
-		task.delay(snippetDuration, function()
-			if phantomStopToken ~= token or not s.Parent then
-				return
-			end
-			-- Gentle fade-out over 0.6s
-			local startVol = s.Volume
-			for i = 1, 6 do
-				if phantomStopToken ~= token then
-					return
-				end
-				s.Volume = startVol * (1 - i / 6)
-				task.wait(0.1)
-			end
-			if phantomStopToken == token then
-				s:Stop()
-			end
-		end)
-	elseif roll < 0.76 and phantomKnockSound and GameConfig.Audio.PhantomKnockId ~= "" then
-		local s = phantomKnockSound
-		s:Stop()
-		s.PlaybackSpeed = randRange(0.75, 1.02)
-		s.Volume = randRange(0.12, 0.19)
-		s.TimePosition = 0
-		s:Play()
-	elseif phantomCreakSound and GameConfig.Audio.AmbientCreakId ~= "" then
-		local s = phantomCreakSound
-		s:Stop()
-		s.PlaybackSpeed = randRange(0.78, 1.05)
-		s.Volume = randRange(0.12, 0.18)
-		s.TimePosition = 0
-		s:Play()
+	if roll < 0.42 then
+		playFadeSnippet(
+			phantomGroanSound,
+			GameConfig.Audio.PhantomGroanId,
+			randRange(0.13, 0.21),
+			0.76,
+			0.96,
+			0.0,
+			11.5,
+			2.2,
+			3.8
+		)
+	elseif roll < 0.76 then
+		playOneShot(phantomKnockSound, GameConfig.Audio.PhantomKnockId, randRange(0.12, 0.19), 0.75, 1.02)
+	else
+		playOneShot(phantomCreakSound, GameConfig.Audio.AmbientCreakId, randRange(0.12, 0.18), 0.78, 1.05)
 	end
 end
 
@@ -417,7 +490,7 @@ local function ensureEntityAudio()
 		true,
 		0.0,
 		GameConfig.Audio.EntityMaxDistance,
-		ventDuctGroup
+		entityAudioGroup
 	)
 	entityScrapeSound = scrape
 	if GameConfig.Audio.EntityScrapeId ~= "" and not scrape.IsPlaying then
@@ -431,7 +504,7 @@ local function ensureEntityAudio()
 		false,
 		0.48,
 		GameConfig.Audio.EntityMaxDistance,
-		ventDuctGroup
+		entityAudioGroup
 	)
 
 	entityWetShiftSound = createSound(
@@ -441,7 +514,7 @@ local function ensureEntityAudio()
 		false,
 		0.24,
 		GameConfig.Audio.EntitySubtleMaxDistance,
-		ventDuctGroup
+		entityAudioGroup
 	)
 
 	entityLurkExhaleSound = createSound(
@@ -449,20 +522,81 @@ local function ensureEntityAudio()
 		GameConfig.Audio.EntityLurkExhaleId,
 		core,
 		false,
-		0.16,
+		0.20,
 		GameConfig.Audio.EntitySubtleMaxDistance,
-		ventDuctGroup
+		entityAudioGroup
+	)
+
+	entityWhisperSound = createSound(
+		"EntityWhisper",
+		GameConfig.Audio.EntityWhisperId,
+		core,
+		false,
+		0.18,
+		GameConfig.Audio.EntityWhisperMaxDistance,
+		entityAudioGroup
+	)
+
+	entityLimbSlideSound = createSound(
+		"EntityLimbSlide",
+		GameConfig.Audio.EntityLimbSlideId,
+		core,
+		false,
+		0.22,
+		GameConfig.Audio.EntityMaxDistance,
+		entityAudioGroup
+	)
+
+	entityLimbThudSound = createSound(
+		"EntityLimbThud",
+		GameConfig.Audio.EntityLimbThudId,
+		core,
+		false,
+		0.20,
+		GameConfig.Audio.EntityMaxDistance,
+		entityAudioGroup
+	)
+
+	entityStartleSlapSound = createSound(
+		"EntityStartleSlap",
+		GameConfig.Audio.EntityStartleSlapId,
+		core,
+		false,
+		0.44,
+		GameConfig.Audio.EntityMaxDistance,
+		entityAudioGroup
+	)
+
+	entityTendonSnapSound = createSound(
+		"EntityTendonSnap",
+		GameConfig.Audio.EntityTendonSnapId,
+		core,
+		false,
+		0.38,
+		GameConfig.Audio.EntityMaxDistance,
+		entityAudioGroup
 	)
 end
 
-local function playOneShot(sound: Sound?, soundId: string, volume: number, speedMin: number, speedMax: number)
-	if not sound or soundId == "" then
-		return
+local function checkEntityOccluded(camera: Camera, entity: Model, entityCore: BasePart): boolean
+	local origin = camera.CFrame.Position
+	local delta = entityCore.Position - origin
+	if delta.Magnitude < 2.0 then
+		return false
 	end
-	sound.Volume = volume
-	sound.PlaybackSpeed = randRange(speedMin, speedMax)
-	sound.TimePosition = 0
-	sound:Play()
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore: { Instance } = { entity }
+	if localPlayer.Character then
+		table.insert(ignore, localPlayer.Character)
+	end
+	local vfx = workspace:FindFirstChild("_LocalClientVFX")
+	if vfx then
+		table.insert(ignore, vfx)
+	end
+	params.FilterDescendantsInstances = ignore
+	local hit = workspace:Raycast(origin, delta, params)
+	return hit ~= nil
 end
 
 function AudioController.playScareSting()
@@ -502,7 +636,6 @@ function AudioController.init()
 	clickSound = createSound("HeadlampClick", GameConfig.Audio.HeadlampClickId, audioFolder, false, 0.42, nil, ventDuctGroup)
 	stingSound = createSound("ScareSting", GameConfig.Audio.ScareStingId, audioFolder, false, GameConfig.Audio.ScareStingVolume, nil, ventDuctGroup)
 
-	-- Start continuous beds silently so crossfades never stutter on asset load
 	if ventAmbienceSound and GameConfig.Audio.VentAmbienceId ~= "" then
 		ventAmbienceSound:Play()
 	end
@@ -563,19 +696,34 @@ function AudioController.init()
 		-- Locate entity & compute distance
 		local ventMap = workspace:FindFirstChild("VentMap")
 		local entity = if ventMap then ventMap:FindFirstChild(activeProfile.id) else nil
-		local entityCore = if entity and entity:IsA("Model") then entity.PrimaryPart else nil
+		local entityModel = if entity and entity:IsA("Model") then entity else nil
+		local entityCore = if entityModel then entityModel.PrimaryPart else nil
 		local entityDist = math.huge
 		local entityState = ""
 		local entityMoveSpeed = 0
 
-		if entity and entityCore and camera then
+		if entityModel and entityCore and camera then
 			entityDist = (camera.CFrame.Position - entityCore.Position).Magnitude
-			entityState = (entity:GetAttribute("EntityState") :: string?) or "Patrol"
-			entityMoveSpeed = (entity:GetAttribute("MoveSpeed") :: number?) or 0
+			entityState = (entityModel:GetAttribute("EntityState") :: string?) or "Patrol"
+			entityMoveSpeed = (entityModel:GetAttribute("MoveSpeed") :: number?) or 0
+
+			-- 1a. Dynamic distance & wall-occlusion EQ on EntityAudioGroup
+			if now - lastOcclusionCheck >= 0.18 then
+				lastOcclusionCheck = now
+				entityIsOccluded = checkEntityOccluded(camera, entityModel, entityCore)
+			end
+			if entityOcclusionEq then
+				local closeness = math.clamp(1 - (entityDist / GameConfig.Audio.EntityMaxDistance), 0, 1)
+				local targetHigh = -14.0 + closeness * 16.0 - (if entityIsOccluded then 5.0 else 0.0)
+				local targetMid = if entityIsOccluded then -2.0 else (1.5 + closeness * 2.0)
+				local eqLerp = math.min(1, dt * 5.0)
+				entityOcclusionEq.HighGain += (math.clamp(targetHigh, -20, 4) - entityOcclusionEq.HighGain) * eqLerp
+				entityOcclusionEq.MidGain += (targetMid - entityOcclusionEq.MidGain) * eqLerp
+			end
 		end
 
-		-- 1. Uncanny Multi-Layer Entity Spatial Audio
-		if entityScrapeSound and entity and entityCore then
+		-- 1b. Uncanny Multi-Layer Entity Spatial Audio
+		if entityScrapeSound and entityModel and entityCore then
 			local targetScrapeVol = 0.0
 			local targetScrapeSpeed = 0.90
 
@@ -584,16 +732,16 @@ function AudioController.init()
 				targetScrapeVol = 0.0
 				targetScrapeSpeed = 0.55
 			elseif entityState == "Retreat" or entityState == "Scramble" then
-				targetScrapeVol = 0.72
+				targetScrapeVol = 0.58
 				targetScrapeSpeed = 1.55
 			elseif entityState == "Chase" then
-				targetScrapeVol = 0.78
+				targetScrapeVol = 0.68
 				targetScrapeSpeed = 1.32
 			elseif entityState == "Stalk" then
-				targetScrapeVol = if entityMoveSpeed > 0.5 then 0.14 else 0.03
+				targetScrapeVol = if entityMoveSpeed > 0.5 then 0.09 else 0.02
 				targetScrapeSpeed = 0.65
 			else -- Patrol
-				targetScrapeVol = if entityMoveSpeed > 0.5 then 0.22 else 0.04
+				targetScrapeVol = if entityMoveSpeed > 0.5 then 0.14 else 0.03
 				targetScrapeSpeed = 0.82
 			end
 
@@ -601,14 +749,42 @@ function AudioController.init()
 			entityScrapeSound.Volume += (targetScrapeVol - entityScrapeSound.Volume) * lerpAlpha
 			entityScrapeSound.PlaybackSpeed += (targetScrapeSpeed - entityScrapeSound.PlaybackSpeed) * lerpAlpha
 
-			-- Subtle joint-crack right as it folds into a corner Lurk
+			-- State transition reaction cues
 			if entityState ~= lastEntityState then
 				if entityState == "Lurk" and entityDist <= GameConfig.Audio.EntityMaxDistance then
+					if entityDist <= 30 then
+						roomToneVacuumUntil = now + 0.65
+					end
 					playOneShot(entityJointCrackSound, GameConfig.Audio.EntityJointCrackId, 0.34, 0.78, 0.94)
 					nextWetShiftTime = now + randRange(3.5, 6.5)
-					nextLurkExhaleTime = now + randRange(2.5, 5.5)
+					nextLurkExhaleTime = now + randRange(2.2, 5.0)
+				elseif (entityState == "Scramble" or entityState == "Retreat") and entityDist <= GameConfig.Audio.EntityMaxDistance then
+					-- Spotted / whip-back metallic duct slap + taut tendon snap right as it flees
+					playFadeSnippet(entityStartleSlapSound, GameConfig.Audio.EntityStartleSlapId, 0.42, 1.15, 1.32, 0.0, 0.3, 0.8, 1.2)
+					playFadeSnippet(entityTendonSnapSound, GameConfig.Audio.EntityTendonSnapId, 0.36, 0.92, 1.10, 0.0, 0.4, 0.6, 1.0)
 				end
 				lastEntityState = entityState
+			end
+
+			-- Cadenced MoveSpeed-synced limb-by-limb crawl foley
+			if entityState ~= "Lurk" and entityMoveSpeed > 0.6 and entityDist <= GameConfig.Audio.EntityMaxDistance then
+				limbStepAccumulator += entityMoveSpeed * dt
+				if limbStepAccumulator >= nextLimbStepDistance then
+					limbStepAccumulator = 0.0
+					-- Asymmetrical stride spacing so it sounds gaunt & uncanny, never robotic
+					nextLimbStepDistance = randRange(2.1, 3.1)
+					limbStepToggle = not limbStepToggle
+
+					if entityState == "Scramble" or entityState == "Retreat" or entityState == "Chase" then
+						playFadeSnippet(entityLimbThudSound, GameConfig.Audio.EntityLimbThudId, randRange(0.32, 0.44), 1.16, 1.40, 0.0, 0.2, 0.35, 0.55)
+					elseif limbStepToggle then
+						playFadeSnippet(entityLimbSlideSound, GameConfig.Audio.EntityLimbSlideId, randRange(0.15, 0.24), 0.72, 0.94, 0.0, 0.4, 0.45, 0.75)
+					else
+						playFadeSnippet(entityLimbThudSound, GameConfig.Audio.EntityLimbThudId, randRange(0.11, 0.18), 0.76, 0.98, 0.0, 0.2, 0.35, 0.60)
+					end
+				end
+			else
+				limbStepAccumulator = 0.0
 			end
 
 			-- Intermittent dry bone/joint cracks during Patrol & Stalk
@@ -619,20 +795,33 @@ function AudioController.init()
 					nextJointCrackTime = now + randRange(GameConfig.Audio.JointCrackPatrolMin, GameConfig.Audio.JointCrackPatrolMax)
 				end
 				if entityDist <= GameConfig.Audio.EntityMaxDistance then
+					if entityDist <= 30 then
+						roomToneVacuumUntil = now + 0.65
+					end
 					local crackVol = if entityState == "Stalk" then 0.50 else 0.42
 					playOneShot(entityJointCrackSound, GameConfig.Audio.EntityJointCrackId, crackVol, 0.82, 1.14)
 				end
 			end
 
-			-- Close-range wet ligament shift (only heard when uncomfortably close)
+			-- Close-range wet ligament shift & uncanny studio horror breath
 			if (entityState == "Stalk" or entityState == "Lurk") and entityDist <= GameConfig.Audio.EntitySubtleMaxDistance then
 				if now >= nextWetShiftTime then
 					nextWetShiftTime = now + randRange(5.5, 11.0)
+					roomToneVacuumUntil = now + 0.60
 					playOneShot(entityWetShiftSound, GameConfig.Audio.EntityWetShiftId, 0.24, 0.78, 0.98)
 				end
 				if now >= nextLurkExhaleTime then
-					nextLurkExhaleTime = now + randRange(4.8, 9.5)
-					playOneShot(entityLurkExhaleSound, GameConfig.Audio.EntityLurkExhaleId, 0.16, 0.80, 0.94)
+					nextLurkExhaleTime = now + randRange(5.2, 10.5)
+					playFadeSnippet(entityLurkExhaleSound, GameConfig.Audio.EntityLurkExhaleId, randRange(0.16, 0.23), 0.82, 0.94, 0.0, 1.5, 2.2, 3.6)
+				end
+			end
+
+			-- Headlamp-triggered faint whisper ("turn it off...") when lurking/stalking nearby
+			if inVents and headlampOn and (entityState == "Lurk" or entityState == "Stalk") and entityDist <= GameConfig.Audio.EntityWhisperMaxDistance then
+				if now >= nextWhisperTime then
+					nextWhisperTime = now + randRange(GameConfig.Audio.WhisperIntervalMin, GameConfig.Audio.WhisperIntervalMax)
+					roomToneVacuumUntil = now + 0.75
+					playFadeSnippet(entityWhisperSound, GameConfig.Audio.EntityWhisperId, randRange(0.14, 0.20), 0.85, 0.98, 0.0, 2.0, 1.8, 3.0)
 				end
 			end
 		end
@@ -645,7 +834,6 @@ function AudioController.init()
 			if entityDist < tensionRange then
 				prox = math.pow(math.clamp(1 - (entityDist / tensionRange), 0, 1), 1.35)
 			end
-			-- Sixth-sense stealth unease when Joint-Cracker is lurking/stalking nearby
 			if (entityState == "Lurk" or entityState == "Stalk") and entityDist <= 34 then
 				prox = math.clamp(prox + 0.24 * (1 - entityDist / 34), 0, 1)
 			elseif entityState == "Chase" and entityDist <= 40 then
@@ -654,15 +842,15 @@ function AudioController.init()
 			targetTension = math.clamp(math.max(prox, panicRatio * 0.65), 0, 1)
 		end
 
-		-- Slow creeping swell / lingering decay so tension feels organic
 		local tensionRate = if targetTension > currentTension then 1.8 else 0.9
 		currentTension += (targetTension - currentTension) * math.min(1, dt * tensionRate)
 
 		local mixLerp = math.min(1, dt * 3.0)
 		if ventAmbienceSound then
-			-- Duck HVAC drone slightly as tension rises -> "heavy, quiet air"
-			local targetVentVol = if inVents then (0.14 - currentTension * 0.095) else 0.0
-			ventAmbienceSound.Volume += (targetVentVol - ventAmbienceSound.Volume) * mixLerp
+			-- Duck HVAC drone under tension AND briefly dip during pre-cue Room Tone Vacuum
+			local vacuumScale = if now < roomToneVacuumUntil then 0.58 else 1.0
+			local targetVentVol = if inVents then ((0.14 - currentTension * 0.095) * vacuumScale) else 0.0
+			ventAmbienceSound.Volume += (targetVentVol - ventAmbienceSound.Volume) * math.min(1, dt * 4.5)
 		end
 		if safeRoomHumSound then
 			local targetSafeVol = if inVents then 0.0 else 0.09
