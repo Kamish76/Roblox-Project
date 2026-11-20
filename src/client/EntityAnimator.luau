@@ -290,8 +290,10 @@ local function updateAnimation(dt: number)
 		end
 
 		-- Distinct mirrored corner-peek posture per side (PeekRight vs PeekLeft)
-		-- Outward broken-neck roll: -roll tilts top of head RIGHT (+X), +roll tilts top of head LEFT (-X)
-		local outwardRoll = -peekSign
+		-- In camera view facing the monster (+Z points away from player):
+		-- +roll tilts skull clockwise (player's RIGHT -> outward from LEFT wall when peekSign == +1)
+		-- -roll tilts skull counter-clockwise (player's LEFT -> outward from RIGHT wall when peekSign == -1)
+		local outwardRoll = peekSign
 
 		-- Pull pelvis slightly back behind wall & shift subtly away from open corridor
 		setTarget("Pelvis", -4, 0, 0, Vector3.new(-0.10 * peekSign, -0.14 + breath * 0.02, 0.28))
