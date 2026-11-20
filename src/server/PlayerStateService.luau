@@ -133,6 +133,9 @@ local function getSafeRoomReturnCFrame(): CFrame
 end
 
 function PlayerStateService.transitionToVents(player: Player)
+	if ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) == "Lobby" then
+		return
+	end
 	if player:GetAttribute(NetContracts.Attributes.IsEliminated) == true then
 		return
 	end
@@ -216,13 +219,29 @@ local function wireDropShaftPrompts()
 	end
 
 	local boundPrompts: { [ProximityPrompt]: boolean } = {}
+	local dropPrompts: { ProximityPrompt } = {}
 	local hasClimbPrompt = false
+
+	local function syncDropPromptsEnabled()
+		local isMatch = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) ~= "Lobby"
+		for _, p in ipairs(dropPrompts) do
+			if p.Parent then
+				p.Enabled = isMatch
+			end
+		end
+	end
+
+	ReplicatedStorage:GetAttributeChangedSignal(NetContracts.Attributes.ServerMode):Connect(syncDropPromptsEnabled)
 
 	local function bindPrompt(prompt: ProximityPrompt, toVents: boolean)
 		if boundPrompts[prompt] then
 			return
 		end
 		boundPrompts[prompt] = true
+		if toVents then
+			table.insert(dropPrompts, prompt)
+			prompt.Enabled = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) ~= "Lobby"
+		end
 		prompt.Triggered:Connect(function(player: Player)
 			local now = os.clock()
 			if now - (stanceTimestamps[player] or 0) < STANCE_COOLDOWN then

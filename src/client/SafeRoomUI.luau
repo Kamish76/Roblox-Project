@@ -25,6 +25,7 @@ local SafeRoomUI = {}
 local localPlayer = Players.LocalPlayer
 local initialized = false
 
+local hudGui: ScreenGui? = nil
 local statusLabel: TextLabel? = nil
 local sectorsLabel: TextLabel? = nil
 local bannerLabel: TextLabel? = nil
@@ -155,7 +156,9 @@ local function createHud()
 	gui.Name = "WorkOrderHud"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
+	gui.Enabled = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) ~= "Lobby"
 	gui.Parent = playerGui
+	hudGui = gui
 
 	local flash = Instance.new("Frame")
 	flash.Name = "ScareFlash"
@@ -248,6 +251,12 @@ function SafeRoomUI.init()
 	initialized = true
 
 	createHud()
+
+	ReplicatedStorage:GetAttributeChangedSignal(NetContracts.Attributes.ServerMode):Connect(function()
+		if hudGui then
+			hudGui.Enabled = ReplicatedStorage:GetAttribute(NetContracts.Attributes.ServerMode) ~= "Lobby"
+		end
+	end)
 
 	local roundSync = NetContracts.getRemoteEvent(NetContracts.Remotes.RoundStateSync, false)
 	roundSync.OnClientEvent:Connect(function(payload: RoundStatePayload)

@@ -23,8 +23,9 @@ All parent services use `"$ignoreUnknownInstances": true`:
 * [src/shared/MapLayout.luau](../src/shared/MapLayout.luau) — Single 1:1 Office HVAC grid blueprint (`88` tiles across `gx = -6..6, gz = 0..-10`, `4` asymmetric office wings `A`–`D` + staggered `HUB` spine, `8` repair slots, `24` see-through floor grates, BFS pathing & `validate()`) (`[Exists]`)
 * [src/shared/NetContracts.luau](../src/shared/NetContracts.luau) — Canonical remote, `CollectionService` tag, attribute, and `CollisionGroup` names (`[Exists]`)
 * [src/shared/EntityProfiles.luau](../src/shared/EntityProfiles.luau) — Modular `EntityProfile` registry (`JointCracker` active MVP, `ClickingCrawler` queued v0.2) (`[Exists]`)
-* [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point validating `MapLayout` and bootstrapping `PlayerStateService`, `RoundService` & `EntityService` (`[Exists]`)
-* [src/server/PlayerStateService.luau](../src/server/PlayerStateService.luau) — Standing/crawl stance switching, `DropShaft` prompts, `CollisionGroup`s, Safe Room spawn clamp, and `HeadlampToggled` authority (`[Exists]`)
+* [src/server/init.server.luau](../src/server/init.server.luau) — Server entry point validating `MapLayout`, pre-registering canonical remotes, detecting `ServerMode` (`Lobby` vs `Match`), and bootstrapping `PlayerStateService`, `LobbyService`, and (in `Match` mode) `RoundService` & `EntityService` (`[Exists]`)
+* [src/server/LobbyService.luau](../src/server/LobbyService.luau) — Server-authoritative Party Lobby & Single-Place Reserved Server matchmaking (`Public` / `Friends` / `Private` 4-char code, 1–4 player squads, `TeleportService:ReserveServer(game.PlaceId)`, `ReturnToLobby` & Studio in-place fallback) (`[Exists]`)
+* [src/server/PlayerStateService.luau](../src/server/PlayerStateService.luau) — Standing/crawl stance switching, `DropShaft` prompts (gated to `Match` mode), `CollisionGroup`s, Safe Room spawn clamp, and `HeadlampToggled` authority (`[Exists]`)
 * [src/server/RepairService.luau](../src/server/RepairService.luau) — Interruptible `ProximityPrompt` repairs (`RepairProgress`), spark VFX, fault lights, noise alerts & status strips (`[Exists]`)
 * [src/server/RoundService.luau](../src/server/RoundService.luau) — Balanced fault randomization, `SectorLED` updates, 3D `WorkOrderMonitor`, and Partial/Full Sign-Off XP (`[Exists]`)
 * [src/server/EntityService.luau](../src/server/EntityService.luau) — `JointCracker` procedural rig, BFS Tile-Graph AI (`Patrol`/`Investigate`/`Chase`), LOS/noise detection & server `PanicRatio` loop (`[Exists]`)
@@ -33,7 +34,8 @@ All parent services use `"$ignoreUnknownInstances": true`:
 * [src/client/CrawlController.luau](../src/client/CrawlController.luau) — `LockFirstPerson`, stance-aware eye height & speeds, and procedural R6 Motor6D standing/crawl poses (`[Exists]`)
 * [src/client/HeadlampController.luau](../src/client/HeadlampController.luau) — Camera-tracked `SpotLight` rig, `[F]` toggle, proximity flicker, and co-op teammate beams (`[Exists]`)
 * [src/client/PanicController.luau](../src/client/PanicController.luau) — Stale Air / Panic HUD bar, pulsing edge vignette & rate-limited `Crawl` noise emitter (`[Exists]`)
-* [src/client/SafeRoomUI.luau](../src/client/SafeRoomUI.luau) — Live Work Order HUD, faulted sector display, Sign-Off outcome banner, ScareFlash overlay & `[Tab]` squad spectate (`[Exists]`)
+* [src/client/SafeRoomUI.luau](../src/client/SafeRoomUI.luau) — Live Work Order HUD (Match mode only), faulted sector display, Sign-Off outcome banner, ScareFlash overlay & `[Tab]` squad spectate (`[Exists]`)
+* [src/client/LobbyUI.luau](../src/client/LobbyUI.luau) — Dark industrial Dispatch Lobby Browser & Active Party UI (Create/Join/Code/Ready/Kick/Launch/Invite Friends) plus Match-mode Safe Room `[L]` Return to Lobby hint (`[Exists]`)
 * [src/client/AudioController.luau](../src/client/AudioController.luau) — Psychological spatial audio controller (`VentDuctGroup`/`EntityAudioGroup` dynamic occlusion EQ/`SubliminalTensionGroup`/`SafeRoomGroup`, dead-silent `Lurk` + cadenced limb foley + `EntityJointCrack`/`EntityWetShift`/`EntityLurkExhale`/`EntityWhisper`/`EntityStartleSlap`/`EntityTendonSnap`/`EntityChaseShout`, pre-cue room-tone vacuum, 3D blind-spot `PhantomAudioAnchor`, tension ducking + `TensionDrone`/`Heartbeat`, `RepairSpark` & `FlickerBuzz`) (`[Exists]`)
 
 ### Planned Module Topology (Target Architecture)
@@ -95,6 +97,9 @@ flowchart TD
 | `RoundStateSync` | `RemoteEvent` | Server → All Clients | `{ phase, activeSectors, repairedCount, requiredCount, totalXP, lastOutcome }` | Authoritative server broadcast | `Implemented (M3)` |
 | `PanicStateSync` | `RemoteEvent` | Server → Client | `{ panicRatio: number }` | Authoritative server `EntityService` panic loop | `Implemented (M4)` |
 | `PlayerEliminated` | `RemoteEvent` | Server → Client | `{ entityId: string }` | Authoritative server `EntityService` `KillRadius` check | `Implemented (M5)` |
+| `LobbyAction` | `RemoteEvent` | Client → Server | `{ action: "create" \| "join" \| "leave" \| "toggleReady" \| "updateSettings" \| "kick" \| "launch" \| "requestSync", ... }` | `0.25s` rate limit, host-only checks, `Public`/`Friends`/`Private` code validation | `Implemented (Lobby)` |
+| `LobbyStateSync` | `RemoteEvent` | Server → Client | `{ serverMode, isStudio, myLobbyId, lobbies, toast, toastIsError }` | Authoritative server broadcast; join `code` only sent to lobby members | `Implemented (Lobby)` |
+| `ReturnToLobby` | `RemoteEvent` | Client → Server | `()` | Verify `ServerMode == "Match"`, `InSafeRoom == true`, `2.0s` cooldown | `Implemented (Lobby)` |
 
 ### 3.2 `CollectionService` Tags
 *Implemented in M2 across `Workspace.VentMap`: `VentTile` (33), `RepairNode` (8), `SectorLED` (4), `SafeRoomZone` (1), `FloorGrate` (5).*
@@ -131,6 +136,7 @@ flowchart TD
 | `LurkSideSign` | `JointCracker` Model | `number` | `-1 \| 1` | `EntityAnimator` (corner-peek bend direction) | `Implemented` |
 | `LurkTargetPos` | `JointCracker` Model | `Vector3` | World position of player head | `EntityAnimator` (live corner-peek head tracking) | `Implemented` |
 | `TargetRootCF` | `JointCracker` Model | `CFrame` | Authoritative server root target pose | `EntityAnimator` (60–144 FPS client-side root interpolation) | `Implemented` |
+| `ServerMode` | `ReplicatedStorage` | `string` | `"Lobby" \| "Match"` | `LobbyService`, `PlayerStateService`, `LobbyUI`, `CrawlController`, `HeadlampController`, `SafeRoomUI` | `Implemented (Lobby)` |
 
 ### 3.4 `CollisionGroup` Matrix
 *Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`, `Entity`.*
