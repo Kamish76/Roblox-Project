@@ -4,28 +4,28 @@
 - cluster-only mode — file stats not available
 
 ## Summary
-- 128 nodes · 257 edges · 14 communities (12 shown, 2 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 27 edges (avg confidence: 0.85)
+- 130 nodes · 260 edges · 14 communities (12 shown, 2 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 27 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6b53d3b2`
+- Built from commit: `5e2180e4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Community 0
-- Community 1
-- Community 2
-- Community 3
-- Community 4
-- Community 5
-- Community 6
-- Community 7
-- Community 8
-- Community 9
-- Community 10
-- Community 11
+- PlayerStateService.luau
+- RoundService.luau
+- RepairService.luau
+- EntityService.luau
+- MapLayout.luau
+- CrawlController.luau
+- shared_waitforchild
+- NetContracts.getRemoteEvent
+- HeadlampController.luau
+- SafeRoomUI.luau
+- updateDetectionAndElimination
+- pickRetreatTile
 
 ## God Nodes (most connected - your core abstractions)
 1. `updateDetectionAndElimination()` - 11 edges
@@ -35,9 +35,9 @@
 5. `RoundService.init()` - 8 edges
 6. `RoundService.startNewRound()` - 8 edges
 7. `NetContracts.getRemoteEvent()` - 8 edges
-8. `pickRetreatTile()` - 7 edges
-9. `EntityService.worldToTileKey()` - 7 edges
-10. `SafeRoomUI.init()` - 7 edges
+8. `EntityService.alertNoise()` - 7 edges
+9. `pickRetreatTile()` - 7 edges
+10. `EntityService.worldToTileKey()` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `EntityService.tileKeyToWorld()` --calls--> `MapLayout.tileToWorld()`  [INFERRED]
@@ -56,51 +56,51 @@
 
 ## Communities (14 total, 2 thin omitted)
 
-### Community 0 - "Community 0"
+### Community 0 - "PlayerStateService.luau"
 Cohesion: 0.23
 Nodes (12): clearCharacterConnections(), ensureCollisionGroup(), getSafeRoomReturnCFrame(), getVentEntryCFrame(), onCharacterAdded(), onPlayerAdded(), onPlayerRemoving(), PlayerStateService.init() (+4 more)
 
-### Community 1 - "Community 1"
+### Community 1 - "RoundService.luau"
 Cohesion: 0.30
 Nodes (14): RepairService.getActiveFaultSectors(), RepairService.getRepairedCount(), broadcastState(), buildStatePayload(), formatSectorList(), pickBalancedFaultIds(), RoundService.checkSquadWipe(), RoundService.getState() (+6 more)
 
-### Community 2 - "Community 2"
+### Community 2 - "RepairService.luau"
 Cohesion: 0.27
 Nodes (10): getFaultLight(), getPrompt(), getSparks(), isPlayerAliveNear(), RepairService.activateFaults(), RepairService.completeNode(), RepairService.init(), RepairService.setNodeProgress() (+2 more)
 
-### Community 3 - "Community 3"
-Cohesion: 0.26
-Nodes (5): AudioController.init(), AudioController.playScareSting(), createSound(), ensureEntityAudio(), ensureFaultHum()
+### Community 3 - "EntityService.luau"
+Cohesion: 0.23
+Nodes (7): EntityService.tryRepairCornerPeek(), getVentPlayers(), hasLineOfSight(), hasLineOfSightFrom(), isPlayerLookingAtEntity(), positionLurkPeekRig(), updatePanicLoop()
 
-### Community 4 - "Community 4"
-Cohesion: 0.26
-Nodes (6): EntityService.tryRepairCornerPeek(), getVentPlayers(), hasLineOfSight(), hasLineOfSightFrom(), isPlayerLookingAtEntity(), positionLurkPeekRig()
+### Community 4 - "MapLayout.luau"
+Cohesion: 0.24
+Nodes (9): EntityService.worldToTileKey(), pickPatrolDestination(), MapLayout.findPath(), MapLayout.getNeighbors(), MapLayout.getRepairSlots(), MapLayout.getTile(), MapLayout.key(), MapLayout.tileToWorld() (+1 more)
 
-### Community 5 - "Community 5"
-Cohesion: 0.33
-Nodes (10): enterChase(), enterRetreat(), EntityService.alertNoise(), pickLurkTileForPlayer(), setDestination(), setState(), updateDetectionAndElimination(), updatePanicLoop() (+2 more)
-
-### Community 6 - "Community 6"
-Cohesion: 0.28
-Nodes (7): EntityService.worldToTileKey(), pickPatrolDestination(), MapLayout.getRepairSlots(), MapLayout.getTile(), MapLayout.key(), MapLayout.tileToWorld(), MapLayout.worldToTile()
-
-### Community 7 - "Community 7"
-Cohesion: 0.53
+### Community 5 - "CrawlController.luau"
+Cohesion: 0.38
 Nodes (8): applyPart0Transform(), applyStancePhysics(), CrawlController.init(), enforceLocalHumanoid(), getRestC0Rotation(), isPlayerCrawling(), updateCharacterPose(), updateLocalMovementAndCamera()
 
-### Community 8 - "Community 8"
+### Community 6 - "shared_waitforchild"
+Cohesion: 0.24
+Nodes (3): createHud(), PanicController.init(), updateVisuals()
+
+### Community 7 - "NetContracts.getRemoteEvent"
+Cohesion: 0.42
+Nodes (7): AudioController.init(), AudioController.playScareSting(), createSound(), ensureEntityAudio(), ensureFaultHum(), NetContracts.getOrCreateRemotesFolder(), NetContracts.getRemoteEvent()
+
+### Community 8 - "HeadlampController.luau"
 Cohesion: 0.42
 Nodes (7): applyLocalLightState(), attachTeammateLight(), createLocalHeadlampRig(), createLocalHud(), HeadlampController.init(), updateHud(), watchRemotePlayer()
 
-### Community 9 - "Community 9"
+### Community 9 - "SafeRoomUI.luau"
 Cohesion: 0.46
 Nodes (7): applyState(), createHud(), cycleSpectate(), formatSectors(), restoreLocalCamera(), SafeRoomUI.init(), triggerScareFlash()
 
-### Community 10 - "Community 10"
-Cohesion: 0.43
-Nodes (5): createHud(), PanicController.init(), updateVisuals(), NetContracts.getOrCreateRemotesFolder(), NetContracts.getRemoteEvent()
+### Community 10 - "updateDetectionAndElimination"
+Cohesion: 0.57
+Nodes (7): enterChase(), enterRetreat(), EntityService.alertNoise(), pickLurkTileForPlayer(), setDestination(), setState(), updateDetectionAndElimination()
 
-### Community 11 - "Community 11"
+### Community 11 - "pickRetreatTile"
 Cohesion: 0.60
 Nodes (5): EntityService.teleportToTile(), EntityService.tileKeyToWorld(), pickRetreatTile(), positionRig(), MapLayout.getTileByKey()
 
@@ -110,9 +110,9 @@ Nodes (5): EntityService.teleportToTile(), EntityService.tileKeyToWorld(), pickR
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `NetContracts.getRemoteEvent()` connect `Community 10` to `Community 0`, `Community 1`, `Community 3`, `Community 8`, `Community 9`?**
-  _High betweenness centrality (0.071) - this node is a cross-community bridge._
-- **Why does `RoundService.init()` connect `Community 1` to `Community 2`, `Community 10`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
-- **Why does `RoundService.startNewRound()` connect `Community 1` to `Community 0`, `Community 2`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `NetContracts.getRemoteEvent()` connect `NetContracts.getRemoteEvent` to `PlayerStateService.luau`, `RoundService.luau`, `shared_waitforchild`, `HeadlampController.luau`, `SafeRoomUI.luau`?**
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
+- **Why does `RoundService.init()` connect `RoundService.luau` to `RepairService.luau`, `NetContracts.getRemoteEvent`?**
+  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Why does `RoundService.startNewRound()` connect `RoundService.luau` to `PlayerStateService.luau`, `RepairService.luau`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
