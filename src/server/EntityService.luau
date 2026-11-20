@@ -121,6 +121,7 @@ local function createEntityRig(parentMap: Instance): Model
 		model:SetAttribute("MoveSpeed", 0)
 		model:SetAttribute("LurkSideSign", 1)
 		model:SetAttribute("LurkTargetPos", Vector3.zero)
+		model:SetAttribute("TargetRootCF", CFrame.identity)
 
 		local root = model:FindFirstChild("RootPart")
 		if root and root:IsA("BasePart") then
@@ -219,8 +220,10 @@ end
 
 local function positionRig(baseCF: CFrame, t: number, speed: number)
 	if isSkinnedRig and skinnedRoot then
-		-- Keep RootPart flush with the vent floor; client EntityAnimator drives all 23 bones at 60 FPS!
-		skinnedRoot.CFrame = baseCF * CFrame.new(0, -1.35, 0)
+		-- Replicate target pose via attribute so Client EntityAnimator smoothly interpolates
+		-- RootPart.CFrame at 60-144 FPS (avoiding Roblox's choppy 20 Hz Anchored CFrame replication!).
+		local targetRootCF = baseCF * CFrame.new(0, -1.35, 0)
+		entityModel:SetAttribute("TargetRootCF", targetRootCF)
 		entityModel:SetAttribute("MoveSpeed", speed)
 		entityCore.CFrame = baseCF
 		entityHead.CFrame = baseCF * CFrame.new(0, 0.90, -2.60)
@@ -521,8 +524,8 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 		local peekBodyPos = basePos + sideVec * 3.85 - bestOpenDir * 0.55
 		local outOfCornerDir = (-sideVec * 0.92 + bestOpenDir * 0.39).Unit
 		local bodyCF = CFrame.lookAt(peekBodyPos, peekBodyPos + outOfCornerDir)
-		skinnedRoot.CFrame = bodyCF * CFrame.new(0, -1.35, 0)
 
+		entityModel:SetAttribute("TargetRootCF", bodyCF * CFrame.new(0, -1.35, 0))
 		entityModel:SetAttribute("MoveSpeed", 0)
 		entityModel:SetAttribute("LurkSideSign", sideSign)
 		entityModel:SetAttribute("LurkTargetPos", playerPos)
@@ -1002,7 +1005,8 @@ local function stepMovement(dt: number)
 		local delta = Vector3.new(wp.X - currentPos.X, 0, wp.Z - currentPos.Z)
 		local dist = delta.Magnitude
 
-		if dist <= 0.35 then
+		-- Advance immediately to next tile without a 1-frame speed=0 hiccup!
+		if dist <= 0.45 then
 			currentTileKey = targetTile
 			pathIndex += 1
 			if pathIndex > #pathQueue then
@@ -1013,17 +1017,30 @@ local function stepMovement(dt: number)
 					lurkTimer = GameConfig.Entity.LurkDuration
 					pathQueue = {}
 					pathIndex = 1
+					return
 				elseif aiState == "Retreat" then
 					setState("Patrol")
 					setDestination(pickPatrolDestination())
 				end
 			end
-			positionRig(entityCore.CFrame, os.clock(), 0)
-		else
+			targetTile = pathQueue[pathIndex]
+			if targetTile then
+				wp = EntityService.tileKeyToWorld(targetTile)
+				delta = Vector3.new(wp.X - currentPos.X, 0, wp.Z - currentPos.Z)
+				dist = delta.Magnitude
+			end
+		end
+
+		if targetTile and dist > 0.01 then
 			local stepDist = math.min(dist, moveSpeed * dt)
 			local nextPos = currentPos + delta.Unit * stepDist
-			local lookCF = CFrame.lookAt(nextPos, nextPos + delta.Unit)
-			positionRig(lookCF, os.clock(), moveSpeed)
+			local desiredLook = CFrame.lookAt(nextPos, nextPos + delta.Unit)
+			-- Smoothly turn around corners instead of snapping 90 deg in 1 frame
+			local turnAlpha = 1 - math.exp(-10 * dt)
+			local smoothRot = entityCore.CFrame.Rotation:Lerp(desiredLook.Rotation, turnAlpha)
+			positionRig(CFrame.new(nextPos) * smoothRot, os.clock(), moveSpeed)
+		else
+			positionRig(entityCore.CFrame, os.clock(), 0)
 		end
 	else
 		positionRig(entityCore.CFrame, os.clock(), 0)

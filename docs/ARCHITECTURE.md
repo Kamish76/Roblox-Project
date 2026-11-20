@@ -130,6 +130,7 @@ flowchart TD
 | `MoveSpeed` | `JointCracker` Model | `number` | `0.0+` studs/sec | `EntityAnimator` (stride speed sync) | `Implemented` |
 | `LurkSideSign` | `JointCracker` Model | `number` | `-1 \| 1` | `EntityAnimator` (corner-peek bend direction) | `Implemented` |
 | `LurkTargetPos` | `JointCracker` Model | `Vector3` | World position of player head | `EntityAnimator` (live corner-peek head tracking) | `Implemented` |
+| `TargetRootCF` | `JointCracker` Model | `CFrame` | Authoritative server root target pose | `EntityAnimator` (60–144 FPS client-side root interpolation) | `Implemented` |
 
 ### 3.4 `CollisionGroup` Matrix
 *Configured in Studio and `PlayerStateService`: `Crawlers`, `VentWalls`, `Entity`.*

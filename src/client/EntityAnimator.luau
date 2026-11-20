@@ -28,6 +28,8 @@ local initialized = false
 
 local trackedModel: Model? = nil
 local rootPart: BasePart? = nil
+local visualRootCF: CFrame? = nil
+local smoothedSpeed = 0
 local bones: { [string]: Bone } = {}
 local restRotInRoot: { [string]: CFrame } = {}
 local currentTransforms: { [string]: CFrame } = {}
@@ -109,6 +111,14 @@ local function bindEntityModel(model: Model)
 
 	trackedModel = model
 	rootPart = root
+	local initTarget = model:GetAttribute("TargetRootCF") :: CFrame?
+	if initTarget and initTarget ~= CFrame.identity then
+		visualRootCF = initTarget
+		root.CFrame = initTarget
+	else
+		visualRootCF = root.CFrame
+	end
+	smoothedSpeed = 0
 	stridePhase = 0
 	lurkElapsed = 0
 	nextCrackTime = os.clock() + 2.5
@@ -184,9 +194,38 @@ local function updateAnimation(dt: number)
 
 	local now = os.clock()
 	local state = (trackedModel:GetAttribute("EntityState") :: string?) or "Patrol"
-	local moveSpeed = (trackedModel:GetAttribute("MoveSpeed") :: number?) or 0
+	local serverSpeed = (trackedModel:GetAttribute("MoveSpeed") :: number?) or 0
 	local lurkSide = (trackedModel:GetAttribute("LurkSideSign") :: number?) or 1
 	local lurkTarget = trackedModel:GetAttribute("LurkTargetPos") :: Vector3?
+	local targetRootCF = trackedModel:GetAttribute("TargetRootCF") :: CFrame?
+
+	-- =========================================================================
+	-- 60-144 FPS CLIENT-SIDE ROOT INTERPOLATION (Eliminates 20 Hz Server Jitter!)
+	-- =========================================================================
+	local curCF = visualRootCF or rootPart.CFrame
+	local visualStepDist = 0
+	if targetRootCF and targetRootCF ~= CFrame.identity then
+		local deltaDist = (targetRootCF.Position - curCF.Position).Magnitude
+		if deltaDist > 12 then
+			-- Genuine teleport (e.g., repair corner-peek spawn or round reset)
+			curCF = targetRootCF
+		else
+			local posAlpha = 1 - math.exp(-15.0 * dt)
+			local rotAlpha = 1 - math.exp(-11.0 * dt)
+			local nextPos = curCF.Position:Lerp(targetRootCF.Position, posAlpha)
+			local nextRot = curCF.Rotation:Lerp(targetRootCF.Rotation, rotAlpha)
+			visualStepDist = (nextPos - curCF.Position).Magnitude
+			curCF = CFrame.new(nextPos) * nextRot
+		end
+		visualRootCF = curCF
+		rootPart.CFrame = curCF
+	end
+
+	-- Smooth actual visual velocity so stride clicks 1:1 with ground movement (zero sliding!)
+	local instSpeed = if dt > 1e-4 then visualStepDist / dt else serverSpeed
+	local speedAlpha = 1 - math.exp(-12.0 * dt)
+	smoothedSpeed += (math.max(instSpeed, serverSpeed * 0.25) - smoothedSpeed) * speedAlpha
+	local moveSpeed = if state == "Lurk" then 0 else smoothedSpeed
 
 	if state ~= lastState then
 		if state == "Lurk" then
