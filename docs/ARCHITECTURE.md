@@ -126,7 +126,7 @@ flowchart TD
 | `StaminaRatio` | `Player` | `number` | `0.0` .. `1.0` | `CrawlController`, `PanicController` & `PlayerStateService` | `Implemented` |
 | `IsEliminated` | `Player` | `boolean` | `true \| false` | `EntityService`, `PlayerStateService` & `RoundService` | `Implemented (M5)` |
 | `PanicRatio` | `Player` | `number` | `0.0` .. `1.0` | `EntityService` & `PanicController` | `Implemented (M4)` |
-| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Stalk" \| "Lurk" \| "Retreat" \| "Chase"` | `EntityService`, `AudioController` & `EntityAnimator` | `Implemented (M4/M5)` |
+| `EntityState` | `JointCracker` Model | `string` | `"Patrol" \| "Stalk" \| "Scramble" \| "Lurk" \| "Retreat" \| "Chase"` | `EntityService`, `AudioController` & `EntityAnimator` | `Implemented (M4/M5)` |
 | `MoveSpeed` | `JointCracker` Model | `number` | `0.0+` studs/sec | `EntityAnimator` (stride speed sync) | `Implemented` |
 | `LurkSideSign` | `JointCracker` Model | `number` | `-1 \| 1` | `EntityAnimator` (corner-peek bend direction) | `Implemented` |
 | `LurkTargetPos` | `JointCracker` Model | `Vector3` | World position of player head | `EntityAnimator` (live corner-peek head tracking) | `Implemented` |

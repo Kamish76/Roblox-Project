@@ -363,25 +363,25 @@ local function updateAnimation(dt: number)
 
 		applyCrawlLimbs(stridePhase, 1.15, 1.3, true)
 
-	elseif state == "Retreat" then
+	elseif state == "Retreat" or state == "Scramble" then
 		-- =====================================================================
-		-- RETREAT: Startled recoil flinch + rapid pullback scuttle
+		-- RETREAT / SCRAMBLE TO CORNER: Frantic low burst into the nearest corner!
 		-- =====================================================================
-		blendRate = 15.0
-		local speedNorm = math.clamp(moveSpeed / 7.0, 0.5, 1.5)
-		stridePhase += dt * (9.5 * speedNorm)
+		blendRate = 16.0
+		local speedNorm = math.clamp(moveSpeed / 7.5, 0.7, 1.8)
+		stridePhase += dt * (10.5 * speedNorm)
 		local s = math.sin(stridePhase)
 
-		setTarget("Pelvis", -8, 6 * s, 4 * s, Vector3.new(0, -0.16, 0))
+		setTarget("Pelvis", -8, 6 * s, 4 * s, Vector3.new(0, -0.18, 0))
 		setTarget("Spine1", -5, -7 * s, 0)
 		setTarget("Spine2", -6, 7 * s, 0)
-		setTarget("Chest",  -8, -5 * s, 0)
-		setTarget("Neck1",  12, 0, -14)
-		setTarget("Neck2",  8, 0, -10)
-		setTarget("Head",   -12, 0, 18)
-		setTarget("Jaw",    -14, 0, 0)
+		setTarget("Chest", -8, -5 * s, 0)
+		setTarget("Neck1", 10, 0, -12)
+		setTarget("Neck2", 6, 0, -8)
+		setTarget("Head", -10, 0, 14)
+		setTarget("Jaw", -16, 0, 0)
 
-		applyCrawlLimbs(stridePhase, 0.95, 1.0, true)
+		applyCrawlLimbs(stridePhase, 1.05, 1.2, true)
 
 	else
 		-- =====================================================================
