@@ -525,9 +525,12 @@ local function positionLurkPeekRig(basePos: Vector3, playerPos: Vector3, t: numb
 		local outOfCornerDir = (-sideVec * 0.92 + bestOpenDir * 0.39).Unit
 		local bodyCF = CFrame.lookAt(peekBodyPos, peekBodyPos + outOfCornerDir)
 
+		-- Exact monster-relative peek side: +1 = player is to monster's RIGHT (PeekRight), -1 = monster's LEFT (PeekLeft)
+		local peekSideSign = if bodyCF.RightVector:Dot(bestOpenDir) >= 0 then 1 else -1
+
 		entityModel:SetAttribute("TargetRootCF", bodyCF * CFrame.new(0, -1.35, 0))
 		entityModel:SetAttribute("MoveSpeed", 0)
-		entityModel:SetAttribute("LurkSideSign", sideSign)
+		entityModel:SetAttribute("LurkSideSign", peekSideSign)
 		entityModel:SetAttribute("LurkTargetPos", playerPos)
 
 		entityCore.CFrame = bodyCF

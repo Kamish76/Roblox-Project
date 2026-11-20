@@ -11,6 +11,7 @@
 	  relative to RootPart) so pitch/yaw/roll are 100% immune to Blender bone-roll quirks.
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -18,6 +19,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local EntityProfiles = require(Shared:WaitForChild("EntityProfiles"))
 
 local EntityAnimator = {}
+local localPlayer = Players.LocalPlayer
 
 local AXIS_RIGHT = Vector3.new(1, 0, 0) -- +X: +rot pitches nose UP, -rot pitches nose DOWN / opens jaw
 local AXIS_UP = Vector3.new(0, 1, 0) -- +Y: +rot yaws LEFT, -rot yaws RIGHT
@@ -256,51 +258,81 @@ local function updateAnimation(dt: number)
 
 	if state == "Lurk" then
 		-- =====================================================================
-		-- TRUE CORNER-PEEK:
-		-- Full body, arms, elbows & legs stay tucked compactly behind the corner wall.
-		-- ONLY the elongated neck + sideways-cracked head + glowing eyes peek out!
+		-- DUAL-SIDED CORNER-PEEK (PeekRight vs PeekLeft) + LIVE 60 FPS EYE-LOCK:
+		-- lurkSide ==  1 -> PeekRight (player is on monster's +X right side; head tilts RIGHT into open hall)
+		-- lurkSide == -1 -> PeekLeft  (player is on monster's -X left side;  head tilts LEFT into open hall)
+		-- Full torso, ribs, elbows & legs stay concealed behind the corner wall.
 		-- =====================================================================
 		lurkElapsed += dt
-		blendRate = 7.5
+		blendRate = 9.0
 		local breath = math.sin(now * 2.2)
-		local shiver = math.sin(now * 16.0) * 1.2
+		local shiver = math.sin(now * 16.0) * 1.1
 
-		-- Compute exact yaw & pitch from body orientation toward the player down the corridor
-		local aimYawDeg = 62 * lurkSide
-		local aimPitchDeg = 0
-		if lurkTarget and lurkTarget.Magnitude > 0.1 then
-			local localTarget = rootPart.CFrame:PointToObjectSpace(lurkTarget)
-			aimYawDeg = math.clamp(math.deg(math.atan2(-localTarget.X, -localTarget.Z)), -85, 85)
-			local horiz = math.max(1, math.sqrt(localTarget.X * localTarget.X + localTarget.Z * localTarget.Z))
-			aimPitchDeg = math.clamp(math.deg(math.atan2(localTarget.Y - 2.1, horiz)), -22, 22)
+		-- Prefer live 60 FPS local player Head position for locked-on eye contact (fallback to server LurkTargetPos)
+		local lockTargetPos: Vector3? = lurkTarget
+		local localChar = localPlayer.Character
+		local localHead = if localChar then localChar:FindFirstChild("Head") :: BasePart? else nil
+		if localHead and (localHead.Position - curCF.Position).Magnitude <= 55 then
+			lockTargetPos = localHead.Position
 		end
 
-		local s = lurkSide
-		-- Pull pelvis & torso slightly back behind the wall so zero ribs/shoulders show
-		setTarget("Pelvis", -4, 0, 0, Vector3.new(0, -0.14 + breath * 0.02, 0.25))
-		setTarget("Spine1", -2, aimYawDeg * 0.08, 0)
-		setTarget("Spine2", 2, aimYawDeg * 0.12, 0)
-		setTarget("Chest", 4 + breath * 1.5, aimYawDeg * 0.15, 0)
+		-- Compute exact yaw & pitch from peeking head origin to target's eyes in monster space
+		local peekSign = if lurkSide >= 0 then 1 else -1
+		local aimYawDeg = -64 * peekSign -- default: yaw right (-Y) for PeekRight, yaw left (+Y) for PeekLeft
+		local aimPitchDeg = 0
+		if lockTargetPos and lockTargetPos.Magnitude > 0.1 then
+			local headOriginLocal = Vector3.new(0, 2.20, -2.55)
+			local targetLocal = curCF:PointToObjectSpace(lockTargetPos)
+			local toTarget = targetLocal - headOriginLocal
+			local horiz = math.max(0.5, math.sqrt(toTarget.X * toTarget.X + toTarget.Z * toTarget.Z))
+			aimYawDeg = math.clamp(math.deg(math.atan2(-toTarget.X, -toTarget.Z)), -95, 95)
+			aimPitchDeg = math.clamp(math.deg(math.atan2(toTarget.Y, horiz)), -28, 28)
+		end
 
-		-- Crane elongated neck straight out past the corner edge, then crack head toward player!
-		setTarget("Neck1", 6 + aimPitchDeg * 0.25, aimYawDeg * 0.28, 12 * s, Vector3.new(0, 0.06, -0.22))
-		setTarget("Neck2", 4 + aimPitchDeg * 0.30, aimYawDeg * 0.32, 16 * s, Vector3.new(0, 0.04, -0.18))
-		setTarget("Head", -4 + aimPitchDeg * 0.45, aimYawDeg * 0.40, (24 * s) + breath * 2.5 + shiver)
+		-- Distinct mirrored corner-peek posture per side (PeekRight vs PeekLeft)
+		-- Outward broken-neck roll: -roll tilts top of head RIGHT (+X), +roll tilts top of head LEFT (-X)
+		local outwardRoll = -peekSign
 
-		-- Jaw slowly unhinges wider the longer it watches you
+		-- Pull pelvis slightly back behind wall & shift subtly away from open corridor
+		setTarget("Pelvis", -4, 0, 0, Vector3.new(-0.10 * peekSign, -0.14 + breath * 0.02, 0.28))
+		setTarget("Spine1", -2, aimYawDeg * 0.06, outwardRoll * 3)
+		setTarget("Spine2", 2, aimYawDeg * 0.10, outwardRoll * 5)
+		setTarget("Chest", 3 + breath * 1.5, aimYawDeg * 0.12, outwardRoll * 6)
+
+		-- Crane elongated neck around the corner edge & distribute remaining yaw+pitch (sum = 100% eye-lock!)
+		setTarget("Neck1", 4 + aimPitchDeg * 0.28, aimYawDeg * 0.26, outwardRoll * 12, Vector3.new(0.08 * peekSign, 0.06, -0.24))
+		setTarget("Neck2", 2 + aimPitchDeg * 0.30, aimYawDeg * 0.24, outwardRoll * 16, Vector3.new(0.06 * peekSign, 0.04, -0.20))
+		setTarget("Head", -2 + aimPitchDeg * 0.42, aimYawDeg * 0.22, (outwardRoll * 26) + breath * 2.2 + shiver)
+
+		-- Jaw slowly unhinges wider the longer it stares at you
 		local jawOpen = math.min(30, 10 + lurkElapsed * 4.2) + math.sin(now * 3.4) * 2.0
 		setTarget("Jaw", -jawOpen, 0, shiver * 0.4)
 
-		-- Tuck BOTH arms & legs tightly BACK behind the corner wall so ONLY the head is visible!
-		setTarget("Clavicle.L", 0, 22, -10)
-		setTarget("UpperArm.L", -28, 38, -22)
-		setTarget("Forearm.L", -35, 0, 12)
-		setTarget("Hand.L", 15, 0, 0)
+		-- Asymmetric limb concealment per side:
+		-- Wall-side arm pulls extra tight against ribs; far-side arm braces back behind the duct corner
+		if peekSign > 0 then
+			-- PEEK RIGHT: Right side is closer to open corner -> tuck Right arm extra tight behind wall
+			setTarget("Clavicle.R", -6, -28, 14)
+			setTarget("UpperArm.R", -34, -44, 28)
+			setTarget("Forearm.R", -42, 0, -16)
+			setTarget("Hand.R", 18, 0, 0)
 
-		setTarget("Clavicle.R", 0, -22, 10)
-		setTarget("UpperArm.R", -28, -38, 22)
-		setTarget("Forearm.R", -35, 0, -12)
-		setTarget("Hand.R", 15, 0, 0)
+			setTarget("Clavicle.L", 0, 18, -8)
+			setTarget("UpperArm.L", -22, 32, -18)
+			setTarget("Forearm.L", -28, 0, 10)
+			setTarget("Hand.L", 12, 0, 0)
+		else
+			-- PEEK LEFT: Left side is closer to open corner -> tuck Left arm extra tight behind wall
+			setTarget("Clavicle.L", -6, 28, -14)
+			setTarget("UpperArm.L", -34, 44, -28)
+			setTarget("Forearm.L", -42, 0, 16)
+			setTarget("Hand.L", 18, 0, 0)
+
+			setTarget("Clavicle.R", 0, -18, 8)
+			setTarget("UpperArm.R", -22, -32, 18)
+			setTarget("Forearm.R", -28, 0, -10)
+			setTarget("Hand.R", 12, 0, 0)
+		end
 
 		setTarget("Thigh.L", -16, 18, 10)
 		setTarget("Shin.L", 22, 0, 0)
