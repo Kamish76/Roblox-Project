@@ -7,16 +7,16 @@
     "ast_empty": true
   },
   "src/client/init.client.luau": {
-    "mtime": 1795143240.2868903,
-    "seen": 1795146575.8059807,
-    "ast_hash": "a9575f767ce533aa294a210788546079",
-    "semantic_hash": ""
+    "mtime": 1795161472.5185914,
+    "seen": 1795173314.42697,
+    "ast_hash": "e7402f2e39994706873019c8bd95a720",
+    "semantic_hash": "e7402f2e39994706873019c8bd95a720"
   },
   "src/server/init.server.luau": {
-    "mtime": 1795145142.841771,
-    "seen": 1795146575.8059807,
-    "ast_hash": "098522bb3e3096b1991e3fb3f7a97ad6",
-    "semantic_hash": ""
+    "mtime": 1795161503.3584392,
+    "seen": 1795173314.4279695,
+    "ast_hash": "b137efed9e862715aea1fef41354a494",
+    "semantic_hash": "b137efed9e862715aea1fef41354a494"
   },
   "src/character/Animate.client.luau": {
     "mtime": 1795097838.2173686,
@@ -25,22 +25,22 @@
     "semantic_hash": "bda66d2634568a07294c1f0381b207c2"
   },
   "src/client/CrawlController.luau": {
-    "mtime": 1795139792.9104922,
-    "seen": 1795140779.9592092,
-    "ast_hash": "6fcd88eaf53e982787b526b2e3e48bb7",
-    "semantic_hash": "6fcd88eaf53e982787b526b2e3e48bb7"
+    "mtime": 1795161473.933785,
+    "seen": 1795173314.425972,
+    "ast_hash": "00c05c61d79fb6bdb26199118e1cd9a1",
+    "semantic_hash": "00c05c61d79fb6bdb26199118e1cd9a1"
   },
   "src/client/HeadlampController.luau": {
-    "mtime": 1795102862.2543223,
-    "seen": 1795103112.428878,
-    "ast_hash": "4e98887b5e0e8c2d800f8df3a59e93fa",
-    "semantic_hash": "4e98887b5e0e8c2d800f8df3a59e93fa"
+    "mtime": 1795161488.7090425,
+    "seen": 1795173314.425972,
+    "ast_hash": "84da851c39a3638f34142fef8d56d245",
+    "semantic_hash": "84da851c39a3638f34142fef8d56d245"
   },
   "src/server/PlayerStateService.luau": {
-    "mtime": 1795139798.6830246,
-    "seen": 1795140779.9607143,
-    "ast_hash": "14877270c07bab1edd1fe0631f53709c",
-    "semantic_hash": "14877270c07bab1edd1fe0631f53709c"
+    "mtime": 1795161358.9692783,
+    "seen": 1795173314.42697,
+    "ast_hash": "a4d5bdf069e1351c8f813473f2c6ab20",
+    "semantic_hash": "a4d5bdf069e1351c8f813473f2c6ab20"
   },
   "src/shared/EntityProfiles.luau": {
     "mtime": 1795097802.0621035,
@@ -49,16 +49,16 @@
     "semantic_hash": "121534d412e48078e6a75191fa682bc0"
   },
   "src/shared/GameConfig.luau": {
-    "mtime": 1795145812.4886904,
-    "seen": 1795146575.8059807,
-    "ast_hash": "c92203fa570944f5505ad48b8107ce9a",
-    "semantic_hash": ""
+    "mtime": 1795161283.199271,
+    "seen": 1795173314.4279695,
+    "ast_hash": "d2b2a115979d2dfbe94a705352b0fff6",
+    "semantic_hash": "d2b2a115979d2dfbe94a705352b0fff6"
   },
   "src/shared/NetContracts.luau": {
-    "mtime": 1795139719.086556,
-    "seen": 1795140779.961719,
-    "ast_hash": "930b5e9762d2a5321d5288a6c4a65dae",
-    "semantic_hash": "930b5e9762d2a5321d5288a6c4a65dae"
+    "mtime": 1795161284.9541261,
+    "seen": 1795173314.4289682,
+    "ast_hash": "842c4c4f84d74e96a406dbcbedf03acc",
+    "semantic_hash": "842c4c4f84d74e96a406dbcbedf03acc"
   },
   "src/shared/MapLayout.luau": {
     "mtime": 1795139722.1178203,
@@ -67,10 +67,10 @@
     "semantic_hash": "dcdfd11e2fcdda7636c41d96c73b78f6"
   },
   "src/client/SafeRoomUI.luau": {
-    "mtime": 1795103381.042653,
-    "seen": 1795103661.2828317,
-    "ast_hash": "6f4da9025dd88728c457f6e039383dd5",
-    "semantic_hash": "6f4da9025dd88728c457f6e039383dd5"
+    "mtime": 1795161491.1075137,
+    "seen": 1795173314.425972,
+    "ast_hash": "27d81eec207eaf16605d72c98be389d3",
+    "semantic_hash": "27d81eec207eaf16605d72c98be389d3"
   },
   "src/server/RepairService.luau": {
     "mtime": 1795106226.9736426,
@@ -91,29 +91,29 @@
     "semantic_hash": "6cfc59a1e3a6839152897544c5d04a69"
   },
   "src/server/EntityService.luau": {
-    "mtime": 1795145814.0777423,
-    "seen": 1795146575.8059807,
+    "mtime": 1795146593.6346693,
+    "seen": 1795173314.42697,
     "ast_hash": "5d9bf60b27a672729cf87abbf8fe8241",
-    "semantic_hash": ""
+    "semantic_hash": "5d9bf60b27a672729cf87abbf8fe8241"
   },
   "src/client/AudioController.luau": {
-    "mtime": 1795139796.7687266,
-    "seen": 1795140779.9592092,
-    "ast_hash": "cbff1b99d79add8cb6bb3c7145e1343f",
-    "semantic_hash": "cbff1b99d79add8cb6bb3c7145e1343f"
+    "mtime": 1795159778.5768595,
+    "seen": 1795173314.4249632,
+    "ast_hash": "3f08611d378d6fae8296622bb6b10bc6",
+    "semantic_hash": "3f08611d378d6fae8296622bb6b10bc6"
   },
   "assets/audio/sfx-manifest.json": {
-    "mtime": 1795140219.0253067,
-    "seen": 1795140779.9580657,
-    "ast_hash": "252df802e4e4058dec71832d073ef2d2",
-    "semantic_hash": "252df802e4e4058dec71832d073ef2d2",
+    "mtime": 1795159778.5736039,
+    "seen": 1795173314.4249632,
+    "ast_hash": "692addc8f5bc304fc2d1b60d7fa8197b",
+    "semantic_hash": "692addc8f5bc304fc2d1b60d7fa8197b",
     "ast_empty": true
   },
   "src/client/EntityAnimator.luau": {
-    "mtime": 1795146119.1496315,
-    "seen": 1795146575.8059807,
+    "mtime": 1795146593.6296225,
+    "seen": 1795173314.425972,
     "ast_hash": "04d39c0753acf1469c9dbdf21b462a06",
-    "semantic_hash": ""
+    "semantic_hash": "04d39c0753acf1469c9dbdf21b462a06"
   },
   "GEMINI.md": {
     "mtime": 1795097317.1848433,
@@ -122,9 +122,9 @@
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1795145543.780429,
-    "seen": 1795146575.8059807,
-    "ast_hash": "cae4632b844fe177c10d94aab1820f2f",
+    "mtime": 1795147863.07861,
+    "seen": 1795148818.1152513,
+    "ast_hash": "85245197c2c1d699d525a956e8cd39c2",
     "semantic_hash": ""
   },
   "docs/DECISIONS.md": {
@@ -150,5 +150,17 @@
     "seen": 1795146575.8059807,
     "ast_hash": "65372db73e2de15962846e25f1afefbf",
     "semantic_hash": ""
+  },
+  "src/client/LobbyUI.luau": {
+    "mtime": 1795161922.981814,
+    "seen": 1795173314.425972,
+    "ast_hash": "3afae44cdc7425a2931d98cf03a3612d",
+    "semantic_hash": "3afae44cdc7425a2931d98cf03a3612d"
+  },
+  "src/server/LobbyService.luau": {
+    "mtime": 1795161348.0156767,
+    "seen": 1795173314.42697,
+    "ast_hash": "940b6b2df71d30130018b1956c081dd0",
+    "semantic_hash": "940b6b2df71d30130018b1956c081dd0"
   }
 }

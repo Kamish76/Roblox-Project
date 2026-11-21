@@ -1,6 +1,66 @@
 {
   "communities": {
     "0": [
+      "src_server_entityservice",
+      "src_server_entityservice_computemapoffset",
+      "src_server_entityservice_createentityrig",
+      "src_server_entityservice_enterchase",
+      "src_server_entityservice_enterlurk",
+      "src_server_entityservice_enterretreat",
+      "src_server_entityservice_enterscrambletocorner",
+      "src_server_entityservice_entityservice_alertnoise",
+      "src_server_entityservice_entityservice_getmodel",
+      "src_server_entityservice_entityservice_teleporttotile",
+      "src_server_entityservice_entityservice_tilekeytoworld",
+      "src_server_entityservice_entityservice_worldtotilekey",
+      "src_server_entityservice_getventplayers",
+      "src_server_entityservice_haslineofsight",
+      "src_server_entityservice_haslineofsightfrom",
+      "src_server_entityservice_iscornertile",
+      "src_server_entityservice_isplayerlookingatentity",
+      "src_server_entityservice_issamecorridoraxis",
+      "src_server_entityservice_pickclosestcornerforscramble",
+      "src_server_entityservice_pickcorridorpeekcorner",
+      "src_server_entityservice_pickpatroldestination",
+      "src_server_entityservice_pickretreattile",
+      "src_server_entityservice_positionlurkpeekrig",
+      "src_server_entityservice_positionrig",
+      "src_server_entityservice_setdestination",
+      "src_server_entityservice_setstate",
+      "src_server_entityservice_updatedetectionandelimination",
+      "src_server_entityservice_updatepanicloop",
+      "src_shared_maplayout",
+      "src_shared_maplayout_maplayout_findpath",
+      "src_shared_maplayout_maplayout_getneighbors",
+      "src_shared_maplayout_maplayout_getrepairslots",
+      "src_shared_maplayout_maplayout_gettile",
+      "src_shared_maplayout_maplayout_gettilebykey",
+      "src_shared_maplayout_maplayout_key",
+      "src_shared_maplayout_maplayout_tiletoworld",
+      "src_shared_maplayout_maplayout_worldtotile"
+    ],
+    "1": [
+      "src_server_entityservice_entityservice_getstate",
+      "src_server_entityservice_entityservice_seteliminatedcallback",
+      "src_server_init_server_startmatchservices",
+      "src_server_repairservice_repairservice_getrepairedcount",
+      "src_server_roundservice",
+      "src_server_roundservice_broadcaststate",
+      "src_server_roundservice_buildstatepayload",
+      "src_server_roundservice_formatsectorlist",
+      "src_server_roundservice_pickbalancedfaultids",
+      "src_server_roundservice_roundservice_checksquadwipe",
+      "src_server_roundservice_roundservice_getstate",
+      "src_server_roundservice_roundservice_init",
+      "src_server_roundservice_roundservice_startnewround",
+      "src_server_roundservice_roundservice_trysignoff",
+      "src_server_roundservice_updatesectorleds",
+      "src_server_roundservice_updateworkorderterminal",
+      "src_server_roundservice_wiresaferoomterminal",
+      "src_shared_entityprofiles",
+      "src_shared_entityprofiles_entityprofiles_getactiveprofile"
+    ],
+    "2": [
       "src_server_playerstateservice",
       "src_server_playerstateservice_clearcharacterconnections",
       "src_server_playerstateservice_configurecharacterpart",
@@ -17,24 +77,7 @@
       "src_server_playerstateservice_setupcollisiongroups",
       "src_server_playerstateservice_wiredropshaftprompts"
     ],
-    "1": [
-      "src_server_repairservice_repairservice_getactivefaultsectors",
-      "src_server_repairservice_repairservice_getrepairedcount",
-      "src_server_roundservice",
-      "src_server_roundservice_broadcaststate",
-      "src_server_roundservice_buildstatepayload",
-      "src_server_roundservice_formatsectorlist",
-      "src_server_roundservice_pickbalancedfaultids",
-      "src_server_roundservice_roundservice_checksquadwipe",
-      "src_server_roundservice_roundservice_getstate",
-      "src_server_roundservice_roundservice_init",
-      "src_server_roundservice_roundservice_startnewround",
-      "src_server_roundservice_roundservice_trysignoff",
-      "src_server_roundservice_updatesectorleds",
-      "src_server_roundservice_updateworkorderterminal",
-      "src_server_roundservice_wiresaferoomterminal"
-    ],
-    "2": [
+    "3": [
       "src_server_repairservice",
       "src_server_repairservice_getfaultlight",
       "src_server_repairservice_getprompt",
@@ -42,6 +85,7 @@
       "src_server_repairservice_isplayeralivenear",
       "src_server_repairservice_repairservice_activatefaults",
       "src_server_repairservice_repairservice_completenode",
+      "src_server_repairservice_repairservice_getactivefaultsectors",
       "src_server_repairservice_repairservice_getnodebyid",
       "src_server_repairservice_repairservice_init",
       "src_server_repairservice_repairservice_setnodeprogress",
@@ -50,48 +94,23 @@
       "src_server_repairservice_setupnode",
       "src_server_repairservice_updatenodevisuals"
     ],
-    "3": [
-      "src_server_entityservice",
-      "src_server_entityservice_computemapoffset",
-      "src_server_entityservice_createentityrig",
-      "src_server_entityservice_entityservice_getmodel",
-      "src_server_entityservice_entityservice_getstate",
-      "src_server_entityservice_entityservice_seteliminatedcallback",
-      "src_server_entityservice_entityservice_tryrepaircornerpeek",
-      "src_server_entityservice_getventplayers",
-      "src_server_entityservice_haslineofsight",
-      "src_server_entityservice_haslineofsightfrom",
-      "src_server_entityservice_isplayerlookingatentity",
-      "src_server_entityservice_positionlurkpeekrig",
-      "src_server_entityservice_updatepanicloop"
-    ],
     "4": [
-      "script_parent_waitforchild",
-      "src_server_entityservice_entityservice_worldtotilekey",
-      "src_server_entityservice_pickpatroldestination",
-      "src_shared_maplayout",
-      "src_shared_maplayout_maplayout_findpath",
-      "src_shared_maplayout_maplayout_getneighbors",
-      "src_shared_maplayout_maplayout_getrepairslots",
-      "src_shared_maplayout_maplayout_gettile",
-      "src_shared_maplayout_maplayout_key",
-      "src_shared_maplayout_maplayout_tiletoworld",
-      "src_shared_maplayout_maplayout_worldtotile"
+      "src_client_audiocontroller",
+      "src_client_audiocontroller_audiocontroller_init",
+      "src_client_audiocontroller_audiocontroller_playscaresting",
+      "src_client_audiocontroller_checkentityoccluded",
+      "src_client_audiocontroller_createsound",
+      "src_client_audiocontroller_ensureentityaudio",
+      "src_client_audiocontroller_ensurephantomanchor",
+      "src_client_audiocontroller_ensurerepairnodeaudio",
+      "src_client_audiocontroller_playfadesnippet",
+      "src_client_audiocontroller_playoneshot",
+      "src_client_audiocontroller_randrange",
+      "src_client_audiocontroller_setupdspbuses",
+      "src_client_audiocontroller_triggerblindspotphantomcue"
     ],
     "5": [
-      "src_client_crawlcontroller",
-      "src_client_crawlcontroller_applypart0transform",
-      "src_client_crawlcontroller_applystancephysics",
-      "src_client_crawlcontroller_crawlcontroller_getstaminaratio",
-      "src_client_crawlcontroller_crawlcontroller_init",
-      "src_client_crawlcontroller_crawlcontroller_isfastcrawling",
-      "src_client_crawlcontroller_enforcelocalhumanoid",
-      "src_client_crawlcontroller_getrestc0rotation",
-      "src_client_crawlcontroller_isplayercrawling",
-      "src_client_crawlcontroller_updatecharacterpose",
-      "src_client_crawlcontroller_updatelocalmovementandcamera"
-    ],
-    "6": [
+      "script_parent_waitforchild",
       "script_waitforchild",
       "shared_waitforchild",
       "src_character_animate_client",
@@ -101,15 +120,32 @@
       "src_client_paniccontroller_createhud",
       "src_client_paniccontroller_paniccontroller_init",
       "src_client_paniccontroller_updatevisuals",
-      "src_server_init_server"
+      "src_server_init_server",
+      "src_server_lobbyservice"
+    ],
+    "6": [
+      "src_client_crawlcontroller",
+      "src_client_crawlcontroller_applypart0transform",
+      "src_client_crawlcontroller_applystancephysics",
+      "src_client_crawlcontroller_crawlcontroller_getstaminaratio",
+      "src_client_crawlcontroller_crawlcontroller_init",
+      "src_client_crawlcontroller_crawlcontroller_isfastcrawling",
+      "src_client_crawlcontroller_enforcelocalhumanoid",
+      "src_client_crawlcontroller_getrestc0rotation",
+      "src_client_crawlcontroller_isplayercrawling",
+      "src_client_crawlcontroller_synccameramode",
+      "src_client_crawlcontroller_updatecharacterpose",
+      "src_client_crawlcontroller_updatelocalmovementandcamera"
     ],
     "7": [
-      "src_client_audiocontroller",
-      "src_client_audiocontroller_audiocontroller_init",
-      "src_client_audiocontroller_audiocontroller_playscaresting",
-      "src_client_audiocontroller_createsound",
-      "src_client_audiocontroller_ensureentityaudio",
-      "src_client_audiocontroller_ensurefaulthum",
+      "src_client_saferoomui",
+      "src_client_saferoomui_applystate",
+      "src_client_saferoomui_createhud",
+      "src_client_saferoomui_cyclespectate",
+      "src_client_saferoomui_formatsectors",
+      "src_client_saferoomui_restorelocalcamera",
+      "src_client_saferoomui_saferoomui_init",
+      "src_client_saferoomui_triggerscareflash",
       "src_shared_netcontracts",
       "src_shared_netcontracts_netcontracts_getorcreateremotesfolder",
       "src_shared_netcontracts_netcontracts_getremoteevent"
@@ -126,69 +162,73 @@
       "src_client_headlampcontroller_watchremoteplayer"
     ],
     "9": [
-      "src_client_saferoomui",
-      "src_client_saferoomui_applystate",
-      "src_client_saferoomui_createhud",
-      "src_client_saferoomui_cyclespectate",
-      "src_client_saferoomui_formatsectors",
-      "src_client_saferoomui_restorelocalcamera",
-      "src_client_saferoomui_saferoomui_init",
-      "src_client_saferoomui_triggerscareflash"
+      "src_client_lobbyui",
+      "src_client_lobbyui_addcorner",
+      "src_client_lobbyui_addstroke",
+      "src_client_lobbyui_clearchildrenofclass",
+      "src_client_lobbyui_fireaction",
+      "src_client_lobbyui_promptinvitefriends",
+      "src_client_lobbyui_refreshcreatetoggles",
+      "src_client_lobbyui_showtoast",
+      "src_client_lobbyui_updatematchreturnhint"
     ],
     "10": [
-      "src_server_entityservice_enterchase",
-      "src_server_entityservice_enterretreat",
-      "src_server_entityservice_entityservice_alertnoise",
-      "src_server_entityservice_picklurktileforplayer",
-      "src_server_entityservice_setdestination",
-      "src_server_entityservice_setstate",
-      "src_server_entityservice_updatedetectionandelimination"
+      "src_client_entityanimator",
+      "src_client_entityanimator_applycrawllimbs",
+      "src_client_entityanimator_bindentitymodel",
+      "src_client_entityanimator_composebone",
+      "src_client_entityanimator_findandbindentity",
+      "src_client_entityanimator_rotaround",
+      "src_client_entityanimator_settarget",
+      "src_client_entityanimator_updateanimation"
     ],
     "11": [
-      "src_server_entityservice_entityservice_teleporttotile",
-      "src_server_entityservice_entityservice_tilekeytoworld",
-      "src_server_entityservice_pickretreattile",
-      "src_server_entityservice_positionrig",
-      "src_shared_maplayout_maplayout_gettilebykey"
-    ],
-    "12": [
-      "src_shared_entityprofiles",
-      "src_shared_entityprofiles_entityprofiles_getactiveprofile"
-    ],
-    "13": [
       "src_shared_gameconfig"
     ]
   },
   "cohesion": {
-    "0": 0.22857142857142856,
-    "1": 0.3047619047619048,
-    "2": 0.27472527472527475,
-    "3": 0.23076923076923078,
-    "4": 0.23636363636363636,
-    "5": 0.38181818181818183,
-    "6": 0.24444444444444444,
-    "7": 0.4166666666666667,
+    "0": 0.13513513513513514,
+    "1": 0.22807017543859648,
+    "2": 0.22857142857142856,
+    "3": 0.24761904761904763,
+    "4": 0.41025641025641024,
+    "5": 0.19696969696969696,
+    "6": 0.3484848484848485,
+    "7": 0.3090909090909091,
     "8": 0.4166666666666667,
-    "9": 0.4642857142857143,
-    "10": 0.5714285714285714,
-    "11": 0.6,
-    "12": 1.0,
-    "13": 1.0
+    "9": 0.25,
+    "10": 0.42857142857142855,
+    "11": 1.0
   },
   "gods": [
     {
+      "id": "src_client_audiocontroller_audiocontroller_init",
+      "label": "AudioController.init()",
+      "degree": 13
+    },
+    {
       "id": "src_server_entityservice_updatedetectionandelimination",
       "label": "updateDetectionAndElimination()",
-      "degree": 11
+      "degree": 13
+    },
+    {
+      "id": "src_server_init_server_startmatchservices",
+      "label": "startMatchServices()",
+      "degree": 10
+    },
+    {
+      "id": "src_server_roundservice_roundservice_init",
+      "label": "RoundService.init()",
+      "degree": 9
+    },
+    {
+      "id": "src_server_roundservice_roundservice_startnewround",
+      "label": "RoundService.startNewRound()",
+      "degree": 9
     },
     {
       "id": "src_server_repairservice_updatenodevisuals",
       "label": "updateNodeVisuals()",
-      "degree": 9
-    },
-    {
-      "id": "src_server_entityservice_entityservice_tryrepaircornerpeek",
-      "label": "EntityService.tryRepairCornerPeek()",
       "degree": 9
     },
     {
@@ -197,70 +237,22 @@
       "degree": 8
     },
     {
-      "id": "src_server_roundservice_roundservice_init",
-      "label": "RoundService.init()",
+      "id": "src_shared_maplayout_maplayout_gettilebykey",
+      "label": "MapLayout.getTileByKey()",
       "degree": 8
     },
     {
-      "id": "src_server_roundservice_roundservice_startnewround",
-      "label": "RoundService.startNewRound()",
-      "degree": 8
-    },
-    {
-      "id": "src_shared_netcontracts_netcontracts_getremoteevent",
-      "label": "NetContracts.getRemoteEvent()",
+      "id": "src_server_entityservice_pickcorridorpeekcorner",
+      "label": "pickCorridorPeekCorner()",
       "degree": 8
     },
     {
       "id": "src_server_entityservice_entityservice_alertnoise",
       "label": "EntityService.alertNoise()",
-      "degree": 7
-    },
-    {
-      "id": "src_server_entityservice_pickretreattile",
-      "label": "pickRetreatTile()",
-      "degree": 7
-    },
-    {
-      "id": "src_server_entityservice_entityservice_worldtotilekey",
-      "label": "EntityService.worldToTileKey()",
-      "degree": 7
+      "degree": 8
     }
   ],
   "surprises": [
-    {
-      "source": "EntityService.tileKeyToWorld()",
-      "target": "MapLayout.tileToWorld()",
-      "source_files": [
-        "src/server/EntityService.luau",
-        "src/shared/MapLayout.luau"
-      ],
-      "confidence": "INFERRED",
-      "relation": "calls",
-      "why": "inferred connection - not explicitly stated in source; bridges separate communities; peripheral node `MapLayout.tileToWorld()` unexpectedly reaches hub `EntityService.tileKeyToWorld()`"
-    },
-    {
-      "source": "PlayerStateService.init()",
-      "target": "NetContracts.getRemoteEvent()",
-      "source_files": [
-        "src/server/PlayerStateService.luau",
-        "src/shared/NetContracts.luau"
-      ],
-      "confidence": "INFERRED",
-      "relation": "calls",
-      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
-    },
-    {
-      "source": "RoundService.startNewRound()",
-      "target": "PlayerStateService.transitionToSafeRoom()",
-      "source_files": [
-        "src/server/RoundService.luau",
-        "src/server/PlayerStateService.luau"
-      ],
-      "confidence": "INFERRED",
-      "relation": "calls",
-      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
-    },
     {
       "source": "buildStatePayload()",
       "target": "RepairService.getActiveFaultSectors()",
@@ -270,7 +262,18 @@
       ],
       "confidence": "INFERRED",
       "relation": "calls",
-      "why": "inferred connection - not explicitly stated in source; peripheral node `RepairService.getActiveFaultSectors()` unexpectedly reaches hub `buildStatePayload()`"
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities; peripheral node `RepairService.getActiveFaultSectors()` unexpectedly reaches hub `buildStatePayload()`"
+    },
+    {
+      "source": "startMatchServices()",
+      "target": "RepairService.setNoiseCallback()",
+      "source_files": [
+        "src/server/init.server.luau",
+        "src/server/RepairService.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities; peripheral node `RepairService.setNoiseCallback()` unexpectedly reaches hub `startMatchServices()`"
     },
     {
       "source": "pickBalancedFaultIds()",
@@ -282,23 +285,32 @@
       "confidence": "INFERRED",
       "relation": "calls",
       "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "RoundService.init()",
+      "target": "RepairService.init()",
+      "source_files": [
+        "src/server/RoundService.luau",
+        "src/server/RepairService.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "RoundService.init()",
+      "target": "NetContracts.getRemoteEvent()",
+      "source_files": [
+        "src/server/RoundService.luau",
+        "src/shared/NetContracts.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
     }
   ],
-  "questions": [
-    {
-      "type": "bridge_node",
-      "question": "Why does `NetContracts.getRemoteEvent()` connect `NetContracts.getRemoteEvent` to `PlayerStateService.luau`, `RoundService.luau`, `shared_waitforchild`, `HeadlampController.luau`, `SafeRoomUI.luau`?",
-      "why": "High betweenness centrality (0.069) - this node is a cross-community bridge."
-    },
-    {
-      "type": "bridge_node",
-      "question": "Why does `RoundService.init()` connect `RoundService.luau` to `RepairService.luau`, `NetContracts.getRemoteEvent`?",
-      "why": "High betweenness centrality (0.038) - this node is a cross-community bridge."
-    },
-    {
-      "type": "bridge_node",
-      "question": "Why does `RoundService.startNewRound()` connect `RoundService.luau` to `PlayerStateService.luau`, `RepairService.luau`?",
-      "why": "High betweenness centrality (0.020) - this node is a cross-community bridge."
-    }
-  ]
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
 }

@@ -5,7 +5,6 @@
   "3": "EntityService.luau",
   "4": "MapLayout.luau",
   "5": "CrawlController.luau",
-  "7": "NetContracts.getRemoteEvent",
   "8": "HeadlampController.luau",
   "9": "SafeRoomUI.luau",
   "10": "updateDetectionAndElimination",
